@@ -99,11 +99,11 @@ function LogEntry({ entry }) {
             {entry.action === 'call'  && entry.amount ? ` ${formatCoins(entry.amount)}`  : ''}
           </span>
         </div>
+        {entry.thought && (
+          <div className="text-gray-500 italic text-[10px] pl-6">💭 {entry.thought}</div>
+        )}
         {entry.trash && (
           <div className="text-red-400 italic text-[10px] pl-6">💬 "{entry.trash}"</div>
-        )}
-        {!entry.trash && entry.thought && (
-          <div className="text-gray-500 italic text-[10px] pl-6">💭 {entry.thought}</div>
         )}
       </div>
     );

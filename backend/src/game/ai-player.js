@@ -115,11 +115,11 @@ Stay in character. Let your personality influence your betting decisions, not ju
 
 ` : ''}${lobsterConfig
   ? `Your decision (three lines):
-Line 1 — THINK: <poker reasoning in 1-2 sentences>
+Line 1 — THINK: <poker reasoning: state your hand strength, pot odds or stack pressure, and why you chose this action. E.g. "I have top pair with a strong kicker; pot odds are 3:1 and I'm ahead of most draws, so calling is profitable.">
 Line 2 — TRASH: <trash talk directed at opponents, 1 funny sentence>
 Line 3 — DECIDE: FOLD / CALL / CHECK / RAISE <amount>`
   : `Your decision (two lines):
-Line 1 — THINK: <your reasoning in 1-2 sentences>
+Line 1 — THINK: <poker reasoning: state your hand strength, pot odds or stack pressure, and why you chose this action. E.g. "I have top pair with a strong kicker; pot odds are 3:1 and I'm ahead of most draws, so calling is profitable.">
 Line 2 — DECIDE: FOLD / CALL / CHECK / RAISE <amount>`}`;
 }
 
@@ -302,7 +302,7 @@ async function getAIAction(modelId, apiKeys, gameState, handHistory, lobsterConf
   }
 
   const prompt    = buildPrompt(modelId, base, gameState, handHistory, lobsterConfig);
-  const maxTokens = isLobster ? 200 : 80;
+  const maxTokens = isLobster ? 250 : 150;
 
   try {
     const text   = await withTimeout(adapter(apiKey, prompt, maxTokens), ACTION_TIMEOUT_MS);
