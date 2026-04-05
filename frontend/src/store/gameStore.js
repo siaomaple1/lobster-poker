@@ -57,6 +57,10 @@ export const useGameStore = create((set, get) => ({
   // ── Lobster name (set when a game starts with a user lobster seat) ────────
   lobsterName: null,
 
+  // ── Online count ──────────────────────────────────────────────────────────
+  onlineCount: 0,
+  setOnlineCount(count) { set({ onlineCount: count }); },
+
   // ── Socket event handlers ─────────────────────────────────────────────────
   handleStatus(data) {
     set({ running: data.running, gameId: data.gameId, handNumber: data.handNumber, seats: data.seats });

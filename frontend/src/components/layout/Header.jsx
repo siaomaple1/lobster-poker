@@ -1,6 +1,7 @@
 import { Link, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore.js';
 import { useLangStore } from '../../store/langStore.js';
+import { useGameStore } from '../../store/gameStore.js';
 import { useT } from '../../utils/i18n.js';
 import { formatCoins } from '../../utils/format.js';
 import { useEffect, useState } from 'react';
@@ -10,6 +11,7 @@ import ReportBug from '../ReportBug.jsx';
 export default function Header() {
   const { user, logout } = useAuthStore();
   const { lang, toggle } = useLangStore();
+  const onlineCount = useGameStore(s => s.onlineCount);
   const t = useT();
   const location = useLocation();
   const [coins, setCoins] = useState(null);
@@ -54,8 +56,15 @@ export default function Header() {
         ))}
       </nav>
 
-      {/* Right side: coins + lang toggle + user */}
+      {/* Right side: online count + coins + lang toggle + user */}
       <div className="flex items-center gap-1.5 md:gap-2 flex-shrink-0">
+        {/* Online count */}
+        {onlineCount > 0 && (
+          <span className="hidden sm:flex items-center gap-1 text-xs text-gray-500 px-2 py-1 rounded-lg bg-[#1e1e1e] border border-[#333]">
+            👥 {t.nav.online(onlineCount)}
+          </span>
+        )}
+
         {/* Bug report */}
         <ReportBug />
 

@@ -9,6 +9,7 @@ const translations = {
       profile:     'Profile',
       signIn:      'Sign In',
       logout:      'Logout',
+      online:      (n) => `${n} online`,
     },
 
     login: {
@@ -245,6 +246,7 @@ const translations = {
       profile:     '个人资料',
       signIn:      '登录',
       logout:      '退出',
+      online:      (n) => `${n} 在线`,
     },
 
     login: {

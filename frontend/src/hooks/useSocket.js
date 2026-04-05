@@ -49,11 +49,13 @@ export function useGameSocket() {
     on('chat:message',        data => storeRef.current.addChatMessage(data));
     on('room:lobby',          data => storeRef.current.handleLobbyUpdate(data));
     on('room:lobby_error',    data => storeRef.current.handleLobbyError(data));
+    on('server:online',       data => storeRef.current.setOnlineCount(data.count));
 
     return () => {
       ['game:status','game:start','game:betting_window','game:betting_closed',
        'game:hand_start','game:thinking','game:action','game:showdown',
-       'game:hand_end','game:end','game:payouts','chat:message','room:lobby','room:lobby_error'].forEach(e => s.off(e));
+       'game:hand_end','game:end','game:payouts','chat:message','room:lobby','room:lobby_error',
+       'server:online'].forEach(e => s.off(e));
     };
   }, []);
 }

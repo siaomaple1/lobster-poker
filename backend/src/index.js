@@ -301,12 +301,17 @@ io.use((socket, next) => {
   next();
 });
 
+function emitOnlineCount() {
+  io.emit('server:online', { count: io.sockets.sockets.size });
+}
+
 // ── Socket.io ──────────────────────────────────────────────────────────────
 io.on('connection', socket => {
   const defaultRoomId = 1;
   socket.join(`table:${defaultRoomId}`);
   socket.data.roomId = defaultRoomId;
   console.log(`[Socket] ${socket.id} connected → room ${defaultRoomId} (${io.sockets.sockets.size} total)`);
+  emitOnlineCount();
 
   // Send current game state for the room the client joined
   const room = rooms.get(defaultRoomId);
@@ -350,6 +355,7 @@ io.on('connection', socket => {
         removeFromLobby(r, socket.id);
         emitLobby(r);
       }
+      emitOnlineCount();
       console.log(`[Agent] ${socket.data.agentUser.username} disconnected`);
     });
     return; // agent sockets don't go through the normal flow below
@@ -447,6 +453,7 @@ io.on('connection', socket => {
   socket.on('disconnect', () => {
     const r = rooms.get(socket.data.roomId);
     if (r) { removeFromLobby(r, socket.id); emitLobby(r); }
+    emitOnlineCount();
     console.log(`[Socket] ${socket.id} disconnected`);
   });
 });
