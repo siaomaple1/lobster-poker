@@ -14,16 +14,18 @@ function makeOAuthRoutes(provider, scope) {
   );
 }
 
-makeOAuthRoutes('google',  ['profile', 'email']);
-makeOAuthRoutes('github',  ['user:email']);
-makeOAuthRoutes('discord', ['identify', 'email']);
+if (process.env.GOOGLE_CLIENT_ID)       makeOAuthRoutes('google',  ['profile', 'email']);
+if (process.env.GITHUB_CLIENT_ID)       makeOAuthRoutes('github',  ['user:email']);
+if (process.env.DISCORD_CLIENT_ID)      makeOAuthRoutes('discord', ['identify', 'email']);
 
 // Twitter uses OAuth 1.0a — different flow
-router.get('/twitter', passport.authenticate('twitter'));
-router.get('/twitter/callback',
-  passport.authenticate('twitter', { failureRedirect: `${CLIENT_URL}/login?error=1` }),
-  (req, res) => res.redirect(CLIENT_URL)
-);
+if (process.env.TWITTER_CONSUMER_KEY) {
+  router.get('/twitter', passport.authenticate('twitter'));
+  router.get('/twitter/callback',
+    passport.authenticate('twitter', { failureRedirect: `${CLIENT_URL}/login?error=1` }),
+    (req, res) => res.redirect(CLIENT_URL)
+  );
+}
 
 router.post('/logout', (req, res, next) => {
   req.logout(err => {

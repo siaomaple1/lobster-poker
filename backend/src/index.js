@@ -14,13 +14,15 @@ const fs             = require('fs');
 
 const rateLimit      = require('express-rate-limit');
 const { stmts }      = require('./db/database');
-const authRouter     = require('./routes/auth');
 const apiRouter      = require('./routes/api');
 const { GameEngine } = require('./game/game-engine');
 
 const PORT       = process.env.PORT || 3001;
 const BASE_URL   = process.env.BASE_URL   || `http://localhost:${PORT}`;
 const CLIENT_URL = process.env.CLIENT_URL || 'http://localhost:5173';
+
+console.log(`[Config] BASE_URL=${BASE_URL} CLIENT_URL=${CLIENT_URL}`);
+console.log(`[Config] GOOGLE_CLIENT_ID=${process.env.GOOGLE_CLIENT_ID ? 'set' : 'MISSING'}`);
 
 // ── Passport strategies ────────────────────────────────────────────────────
 const GoogleStrategy  = require('passport-google-oauth20').Strategy;
@@ -105,6 +107,9 @@ passport.deserializeUser((id, done) => {
   const user = stmts.getUserById.get(id);
   done(null, user || false);
 });
+
+// require authRouter AFTER passport strategies are registered
+const authRouter = require('./routes/auth');
 
 // ── App ────────────────────────────────────────────────────────────────────
 const app    = express();
