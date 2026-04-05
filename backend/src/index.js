@@ -12,6 +12,7 @@ const SQLiteStore    = require('connect-sqlite3')(session);
 const path           = require('path');
 const fs             = require('fs');
 
+const rateLimit      = require('express-rate-limit');
 const { stmts }      = require('./db/database');
 const authRouter     = require('./routes/auth');
 const apiRouter      = require('./routes/api');
@@ -114,6 +115,11 @@ const io     = new Server(server, {
 app.use(cors({ origin: CLIENT_URL, credentials: true }));
 app.use(express.json());
 
+// ── Rate limiting ──────────────────────────────────────────────────────────
+app.use('/auth/', rateLimit({ windowMs: 60_000, max: 20,  message: { error: 'Too many requests' }, standardHeaders: true, legacyHeaders: false }));
+app.use('/api/bets', rateLimit({ windowMs: 60_000, max: 30,  message: { error: 'Too many requests' }, standardHeaders: true, legacyHeaders: false }));
+app.use('/api/',     rateLimit({ windowMs: 60_000, max: 200, message: { error: 'Too many requests' }, standardHeaders: true, legacyHeaders: false }));
+
 // Ensure session store directory exists
 fs.mkdirSync(path.join(__dirname, '../data'), { recursive: true });
 
@@ -122,7 +128,7 @@ app.use(session({
   secret: process.env.SESSION_SECRET || 'dev-secret-change-me',
   resave: false,
   saveUninitialized: false,
-  cookie: { secure: false, httpOnly: true, maxAge: 7 * 24 * 60 * 60 * 1000 },
+  cookie: { secure: process.env.NODE_ENV === 'production', httpOnly: true, maxAge: 7 * 24 * 60 * 60 * 1000 },
 }));
 
 app.use(passport.initialize());
