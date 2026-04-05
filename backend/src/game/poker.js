@@ -276,16 +276,19 @@ class PokerHand {
 
     switch (this.stage) {
       case 'pre-flop':
+        this.deck.pop(); // burn
         this.board.push(this.deck.pop(), this.deck.pop(), this.deck.pop());
         this.stage = 'flop';
         this._addLog('deal', null, null, `Flop: ${this.board.map(cardString).join(' ')}`);
         break;
       case 'flop':
+        this.deck.pop(); // burn
         this.board.push(this.deck.pop());
         this.stage = 'turn';
         this._addLog('deal', null, null, `Turn: ${cardString(this.board[3])}`);
         break;
       case 'turn':
+        this.deck.pop(); // burn
         this.board.push(this.deck.pop());
         this.stage = 'river';
         this._addLog('deal', null, null, `River: ${cardString(this.board[4])}`);
@@ -328,6 +331,7 @@ class PokerHand {
     // Bug 3 fix: split pot evenly among tied winners
     let mainWinnerId   = null;
     let mainWinnerHand = null;
+    const allWinnerIds = new Set();
 
     for (const { size, eligible } of this._buildSidePots()) {
       if (size === 0 || eligible.length === 0) continue;
@@ -343,6 +347,7 @@ class PokerHand {
 
       for (const w of winners) {
         this.players.find(p => p.id === w.id).chips += share;
+        allWinnerIds.add(w.id);
       }
       // Odd chip goes to first winner in seat order (closest to dealer)
       if (rem > 0) this.players.find(p => p.id === ranked[0].id).chips += rem;
@@ -360,6 +365,7 @@ class PokerHand {
     return {
       status:     'showdown',
       winnerId:   mainWinnerId,
+      winnerIds:  [...allWinnerIds],
       winnerHand: mainWinnerHand
         ? { name: mainWinnerHand.name, rank: mainWinnerHand.rank }
         : null,
@@ -403,6 +409,7 @@ class PokerHand {
       board: this.board.map(cardString),
       pot: this.pot,
       maxBet: this.maxBet,
+      minRaise: this.maxBet + (this.lastRaiseAmount || BIG_BLIND),
       actorIdx: this.actorIdx,
       players: this.players.map(p => ({
         id:     p.id,

@@ -182,7 +182,7 @@ class GameEngine {
     }
 
     // ── Showdown ───────────────────────────────────────────────────────
-    const { winnerId, winnerHand, pot, state, log } = result;
+    const { winnerId, winnerIds, winnerHand, pot, state, log } = result;
 
     this.emit('game:showdown', { winnerId, winnerHand, pot, state });
     await sleep(HAND_END_DELAY_MS);
@@ -194,9 +194,10 @@ class GameEngine {
     }
 
     // DB updates
+    const winnerSet = new Set(winnerIds || [winnerId]);
     for (const hp of hand.players) {
       stmts.updateSeat.run(hp.chips, this.gameId, hp.id);
-      stmts.recordHandResult.run(hp.id === winnerId ? 1 : 0, baseModel(hp.id));
+      stmts.recordHandResult.run(winnerSet.has(hp.id) ? 1 : 0, baseModel(hp.id));
     }
     stmts.recordWin.run(this.gameId, baseModel(winnerId));
 
@@ -211,7 +212,7 @@ class GameEngine {
     });
 
     // ── Settle user bets ───────────────────────────────────────────────
-    this._settleBets(winnerId);
+    this._settleBets(winnerIds || [winnerId]);
 
     // Eliminate bust players
     for (const seat of this.seats) {
@@ -229,17 +230,19 @@ class GameEngine {
     });
   }
 
-  _settleBets(winnerId) {
+  _settleBets(winnerIds) {
     const bets = stmts.getBetsForHand.all(this.gameId, this.handNumber);
     if (!bets.length) return;
 
+    // winnerIds is an array (supports split pots); each winner's backers share the pool evenly
+    const winnerSet   = new Set(winnerIds);
     const totalPool   = bets.reduce((s, b) => s + b.amount, 0);
-    const winnerBets  = bets.filter(b => b.model === winnerId);
+    const winnerBets  = bets.filter(b => winnerSet.has(b.model));
     const winnerPool  = winnerBets.reduce((s, b) => s + b.amount, 0);
 
     for (const bet of bets) {
       let payout = 0;
-      if (bet.model === winnerId && winnerPool > 0) {
+      if (winnerSet.has(bet.model) && winnerPool > 0) {
         payout = Math.floor((bet.amount / winnerPool) * totalPool);
         stmts.addCoins.run(payout, bet.user_id);
       }
@@ -248,12 +251,12 @@ class GameEngine {
 
     this.emit('game:payouts', {
       handNumber: this.handNumber,
-      winnerId,
+      winnerIds:  [...winnerSet],
       payouts: bets.map(b => ({
         userId: b.user_id,
         model:  b.model,
         bet:    b.amount,
-        payout: b.model === winnerId ? Math.floor((b.amount / (winnerPool || 1)) * totalPool) : 0,
+        payout: winnerSet.has(b.model) ? Math.floor((b.amount / (winnerPool || 1)) * totalPool) : 0,
       })),
     });
   }

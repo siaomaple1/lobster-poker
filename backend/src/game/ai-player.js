@@ -75,7 +75,7 @@ function buildPrompt(modelId, base, gameState, handHistory, lobsterConfig = null
   const me = gameState.players.find(p => p.id === modelId);
   const others = gameState.players.filter(p => p.id !== modelId);
   const toCall = Math.max(0, gameState.maxBet - (me.bet || 0));
-  const minRaise = gameState.maxBet + 100;
+  const minRaise = gameState.minRaise ?? (gameState.maxBet + 100);
 
   const boardStr = gameState.board.length > 0
     ? `Community cards: ${gameState.board.join(' ')}`
