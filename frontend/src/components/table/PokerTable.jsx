@@ -24,12 +24,17 @@ const SEAT_POSITIONS = [
 ];
 
 export default function PokerTable() {
-  const { seats, players, actorId, stage, pot, board, running, lobbyPlayers } = useGameStore();
+  const { seats, players, actorId, stage, pot, board, running, lobbyPlayers, lobsterName } = useGameStore();
   const { user } = useAuthStore();
   const t = useT();
 
   const seatMap   = Object.fromEntries((seats   || []).map(s => [s.id, s]));
   const playerMap = Object.fromEntries((players || []).map(p => [p.id, p]));
+
+  // Use the user's custom lobster name if set, otherwise fall back to the default label
+  const lobsterModel = lobsterName
+    ? { id: 'lobster', label: lobsterName, color: '#e53e3e', emoji: '🦞' }
+    : LOBSTER_MODEL;
 
   return (
     <div className="relative w-full" style={{ paddingBottom: '56.25%' }}>
@@ -96,7 +101,7 @@ export default function PokerTable() {
             return (
               <div className="absolute" style={{ top: pos.top, left: pos.left, transform: pos.transform }}>
                 <PlayerSeat
-                  model={LOBSTER_MODEL}
+                  model={lobsterModel}
                   chips={seatMap['lobster'].chips}
                   player={playerMap['lobster'] || null}
                   isActor={actorId === 'lobster'}

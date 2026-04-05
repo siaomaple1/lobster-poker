@@ -71,7 +71,7 @@ class GameEngine {
         this.seats.push({ id: 'lobster', chips: STARTING_CHIPS });
         stmts.insertSeat.run(id, 'lobster');
         stmts.ensureAiStats.run('lobster');
-        this.seatOwners['lobster'] = userRow.display_name || userRow.username;
+        this.seatOwners['lobster'] = userRow.lobster_name || userRow.display_name || userRow.username;
         console.log(`[Game ${id}] Lobster seat: "${lobsterName}" (${userRow.lobster_model})`);
       }
 
@@ -86,7 +86,7 @@ class GameEngine {
       }
 
       console.log(`[Game ${id}] Started`);
-      this.emit('game:start', { gameId: id, seats: this.seats });
+      this.emit('game:start', { gameId: id, seats: this.seats, lobsterName: this.lobsterConfig?.name || null });
 
       while (this.running && this.activePlayers().length > 1) {
         await this.runHand();

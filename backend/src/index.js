@@ -217,7 +217,7 @@ function removeFromLobby(room, socketId) {
 function lobbySnapshot(room) {
   return [...room.lobby.values()].map(e => ({
     id:       e.user.id,
-    username: e.user.display_name || e.user.username,
+    username: e.user.lobster_name || e.user.display_name || e.user.username,
     avatar:   e.user.avatar,
     ready:    e.ready,
     joinedAt: e.joinedAt,

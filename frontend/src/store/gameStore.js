@@ -10,6 +10,7 @@ export const useGameStore = create((set, get) => ({
       stage: null, board: [], pot: 0, maxBet: 0, actorId: null, players: [],
       bettingOpen: false, bettingEndsAt: null, log: [], chatMessages: [],
       lastWinner: null, lastWinHand: null, lobbyPlayers: [], lobbyError: null,
+      lobsterName: null,
     });
   },
 
@@ -53,6 +54,9 @@ export const useGameStore = create((set, get) => ({
   lastWinner:   null,
   lastWinHand:  null,
 
+  // ── Lobster name (set when a game starts with a user lobster seat) ────────
+  lobsterName: null,
+
   // ── Socket event handlers ─────────────────────────────────────────────────
   handleStatus(data) {
     set({ running: data.running, gameId: data.gameId, handNumber: data.handNumber, seats: data.seats });
@@ -62,6 +66,7 @@ export const useGameStore = create((set, get) => ({
     set({
       running: true, gameId: data.gameId,
       seats: data.seats, board: [], pot: 0, stage: null,
+      lobsterName: data.lobsterName || null,
       log: [{ type: 'system', msg: '🦞 New game started!' }],
     });
   },
