@@ -337,6 +337,39 @@ io.on('connection', socket => {
     io.to(`table:${socket.data.roomId}`).emit('chat:message', msg);
   });
 
+  // Player explicitly takes a seat
+  socket.on('seat:take', () => {
+    const r = rooms.get(socket.data.roomId);
+    if (!r || r.engine.running) return;
+    const u = socket.request.user;
+    if (!u) return socket.emit('seat:error', { error: '请先登录' });
+
+    const keys = buildUserKeys(u.id);
+    if (Object.keys(keys).length === 0) {
+      return socket.emit('seat:error', { error: '请先去 Settings 页面填入你的 API Key' });
+    }
+
+    if (r.lobby.has(u.id)) {
+      const entry = r.lobby.get(u.id);
+      clearTimeout(entry.timer);
+      entry.ready = true;
+    } else {
+      r.lobby.set(u.id, { user: u, ready: true, keys, timer: null, socketId: socket.id, joinedAt: Date.now() });
+    }
+    emitLobby(r);
+    checkAutoStart(r);
+  });
+
+  // Player leaves their seat
+  socket.on('seat:leave', () => {
+    const r = rooms.get(socket.data.roomId);
+    if (!r || r.engine.running) return;
+    const u = socket.request.user;
+    if (!u) return;
+    const entry = r.lobby.get(u.id);
+    if (entry) { clearTimeout(entry.timer); r.lobby.delete(u.id); emitLobby(r); }
+  });
+
   socket.on('disconnect', () => {
     const r = rooms.get(socket.data.roomId);
     if (r) { removeFromLobby(r, socket.id); emitLobby(r); }
