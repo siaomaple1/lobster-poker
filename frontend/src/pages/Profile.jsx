@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, Navigate } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore.js';
-import { getCoins, getMyBets, getLobster, saveLobster, getApiKeys } from '../utils/api.js';
+import { getCoins, getMyBets, getLobster, saveLobster, getApiKeys, getAgentToken, refreshAgentToken } from '../utils/api.js';
 import { formatCoins, formatTimer } from '../utils/format.js';
 import { AI_MODELS, MODEL_MAP } from '../utils/constants.js';
 
@@ -34,6 +34,7 @@ export default function Profile() {
           <span className="text-gray-600 group-hover:text-gold transition-colors text-lg">→</span>
         </div>
       </Link>
+      <AgentTokenCard />
       <BetHistory />
     </div>
   );
@@ -164,6 +165,70 @@ function MyLobsterCard({ user }) {
       >
         {saving ? 'Saving...' : saved ? '✓ Saved!' : 'Save Lobster'}
       </button>
+    </div>
+  );
+}
+
+function AgentTokenCard() {
+  const [token, setToken]     = useState(null);
+  const [copied, setCopied]   = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    getAgentToken().then(d => setToken(d.token)).catch(() => {});
+  }, []);
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(token);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleRefresh = async () => {
+    setLoading(true);
+    try { setToken((await refreshAgentToken()).token); } catch {}
+    setLoading(false);
+  };
+
+  return (
+    <div className="bg-[#1e1e1e] border border-[#333] rounded-2xl p-6 space-y-3">
+      <div>
+        <h3 className="font-semibold text-white text-lg">🦾 OpenClaw Agent Token</h3>
+        <p className="text-xs text-gray-500 mt-0.5">
+          让 OpenClaw agent 直接连进游戏，无需填 API key
+        </p>
+      </div>
+
+      {token ? (
+        <>
+          <div className="flex items-center gap-2">
+            <code className="flex-1 bg-[#111] border border-[#333] rounded-lg px-3 py-2 text-xs font-mono text-gray-300 truncate">
+              {token}
+            </code>
+            <button
+              onClick={handleCopy}
+              className="shrink-0 bg-[#2a2a2a] hover:bg-[#333] border border-[#444] text-gray-300 text-xs px-3 py-2 rounded-lg transition-colors"
+            >
+              {copied ? '✓ Copied' : 'Copy'}
+            </button>
+          </div>
+          <div className="bg-[#1a1a2a] border border-blue-900/40 rounded-xl p-3 text-xs text-gray-400 space-y-1">
+            <div className="text-blue-400 font-semibold mb-1">使用方法（OpenClaw skill 配置）：</div>
+            <div>1. 安装 lobster-poker skill：<code className="text-gray-300">/skill install lobster-poker</code></div>
+            <div>2. 设置 token：<code className="text-gray-300">/lobster-poker setup {token.slice(0, 8)}...</code></div>
+            <div>3. 加入游戏：<code className="text-gray-300">/lobster-poker join</code></div>
+          </div>
+          <button
+            onClick={handleRefresh}
+            disabled={loading}
+            className="text-xs text-gray-500 hover:text-red-400 underline transition-colors disabled:opacity-50"
+          >
+            {loading ? '正在刷新...' : '重新生成 Token（旧 token 立即失效）'}
+          </button>
+        </>
+      ) : (
+        <div className="text-gray-600 text-sm">Loading...</div>
+      )}
     </div>
   );
 }

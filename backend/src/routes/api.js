@@ -1,6 +1,7 @@
 'use strict';
 
 const express = require('express');
+const crypto  = require('crypto');
 const { requireAuth } = require('../middleware/auth');
 const { stmts, getCoinsForUser, secondsUntilReset } = require('../db/database');
 const { AI_MODELS } = require('../game/game-engine');
@@ -78,6 +79,21 @@ router.post('/lobster', requireAuth, (req, res) => {
     id: req.user.id,
   });
   res.json({ ok: true });
+});
+
+// ── Agent Token ────────────────────────────────────────────────────────────
+router.get('/agent-token', requireAuth, (req, res) => {
+  const user = stmts.getUserById.get(req.user.id);
+  if (user.agent_token) return res.json({ token: user.agent_token });
+  const token = crypto.randomBytes(32).toString('hex');
+  stmts.setAgentToken.run(token, req.user.id);
+  res.json({ token });
+});
+
+router.post('/agent-token/refresh', requireAuth, (req, res) => {
+  const token = crypto.randomBytes(32).toString('hex');
+  stmts.setAgentToken.run(token, req.user.id);
+  res.json({ token });
 });
 
 // ── Bets ───────────────────────────────────────────────────────────────────

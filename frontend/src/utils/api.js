@@ -26,5 +26,7 @@ export async function placeBet(model, amount) {
   return (await api.post('/bets', { model, amount })).data;
 }
 export async function getMyBets() { return (await api.get('/bets/me')).data; }
+export async function getAgentToken()     { return (await api.get('/agent-token')).data; }
+export async function refreshAgentToken() { return (await api.post('/agent-token/refresh')).data; }
 
 export default api;

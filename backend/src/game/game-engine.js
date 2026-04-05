@@ -27,6 +27,8 @@ class GameEngine {
     this.seats = [];             // [{ id: 'claude', chips: 10000 }]
     this.currentHand = null;
     this.dealerId = null;        // ID of current dealer (null = first hand, start at index 0)
+    this.agentSocket = null;     // OpenClaw agent socket reference
+    this.pendingAgentResolve = null; // resolve fn for current agent action
   }
 
   emit(event, data) {
@@ -71,6 +73,16 @@ class GameEngine {
         stmts.ensureAiStats.run('lobster');
         this.seatOwners['lobster'] = userRow.display_name || userRow.username;
         console.log(`[Game ${id}] Lobster seat: "${lobsterName}" (${userRow.lobster_model})`);
+      }
+
+      // Add openclaw seat if an agent is connected
+      if (this.agentSocket?.connected) {
+        const agentUser = this.agentSocket.data?.agentUser;
+        this.seats.push({ id: 'openclaw', chips: STARTING_CHIPS });
+        stmts.insertSeat.run(id, 'openclaw');
+        stmts.ensureAiStats.run('openclaw');
+        if (agentUser) this.seatOwners['openclaw'] = agentUser.display_name || agentUser.username;
+        console.log(`[Game ${id}] OpenClaw agent seated: ${agentUser?.username || 'unknown'}`);
       }
 
       console.log(`[Game ${id}] Started`);
@@ -142,7 +154,9 @@ class GameEngine {
       // Get AI decision
       const gameStateForAI = hand.getStateForPlayer(actorId);
       const lobsterCfg = (actorId === 'lobster') ? this.lobsterConfig : null;
-      const { action, raiseTotal, thought, trash } = await getAIAction(actorId, this.apiKeys, gameStateForAI, hand.log, lobsterCfg);
+      const { action, raiseTotal, thought, trash } = actorId === 'openclaw'
+        ? await this._getAgentAction(gameStateForAI, hand.log)
+        : await getAIAction(actorId, this.apiKeys, gameStateForAI, hand.log, lobsterCfg);
 
       await sleep(ACTION_DELAY_MS);
 
@@ -235,6 +249,33 @@ class GameEngine {
         bet:    b.amount,
         payout: b.model === winnerId ? Math.floor((b.amount / (winnerPool || 1)) * totalPool) : 0,
       })),
+    });
+  }
+
+  // Ask the connected OpenClaw agent for its action
+  _getAgentAction(gameState, handHistory) {
+    const AGENT_TIMEOUT_MS = 30000;
+    return new Promise((resolve, reject) => {
+      if (!this.agentSocket || !this.agentSocket.connected) {
+        console.warn('[Agent] No agent connected — falling back');
+        const me = gameState.players.find(p => p.id === 'openclaw');
+        const toCall = Math.max(0, gameState.maxBet - (me?.bet || 0));
+        return resolve(toCall <= 200 ? { action: 'call' } : { action: 'fold' });
+      }
+      const timer = setTimeout(() => {
+        this.pendingAgentResolve = null;
+        console.warn('[Agent] Timed out — falling back');
+        resolve({ action: 'fold' });
+      }, AGENT_TIMEOUT_MS);
+
+      this.pendingAgentResolve = (result) => {
+        clearTimeout(timer);
+        resolve(result);
+      };
+      this.agentSocket.emit('agent:decide', {
+        gameState,
+        handHistory: (handHistory || []).slice(-6),
+      });
     });
   }
 

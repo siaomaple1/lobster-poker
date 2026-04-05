@@ -269,6 +269,18 @@ app.set('io', io);
 app.set('rooms', rooms);
 app.set('createRoom', createRoom);
 
+// ── Agent sockets: token-based auth bypass ─────────────────────────────────
+// Agent sockets identify via ?agentToken= query param instead of session cookie
+io.use((socket, next) => {
+  const token = socket.handshake.auth?.agentToken || socket.handshake.query?.agentToken;
+  if (!token) return next(); // regular browser client — session auth applies
+  const user = stmts.getUserByAgentToken.get(token);
+  if (!user) return next(new Error('Invalid agent token'));
+  socket.data.agentUser = user;
+  socket.data.isAgent   = true;
+  next();
+});
+
 // ── Socket.io ──────────────────────────────────────────────────────────────
 io.on('connection', socket => {
   const defaultRoomId = 1;
@@ -281,6 +293,46 @@ io.on('connection', socket => {
   if (room) {
     socket.emit('game:status', room.engine.getStatus());
     socket.emit('room:lobby', { players: lobbySnapshot(room) });
+  }
+
+  // ── Agent: sit at table ───────────────────────────────────────────────────
+  if (socket.data.isAgent) {
+    console.log(`[Agent] ${socket.data.agentUser.username} connected`);
+    socket.on('agent:sit', ({ roomId = 1 } = {}) => {
+      const r = rooms.get(roomId);
+      if (!r) return socket.emit('agent:error', { error: 'Room not found' });
+      if (r.engine.running) return socket.emit('agent:error', { error: 'Game already running' });
+      socket.join(`table:${roomId}`);
+      socket.data.roomId = roomId;
+      r.engine.agentSocket = socket;
+      socket.emit('agent:seated', { roomId, username: socket.data.agentUser.username });
+      socket.emit('game:status', r.engine.getStatus());
+      socket.emit('room:lobby', { players: lobbySnapshot(r) });
+      // Add to lobby as ready
+      const u = socket.data.agentUser;
+      const keys = buildUserKeys(u.id);
+      if (r.lobby.has(u.id)) clearTimeout(r.lobby.get(u.id).timer);
+      r.lobby.set(u.id, { user: u, ready: true, keys, timer: null, socketId: socket.id, joinedAt: Date.now() });
+      emitLobby(r);
+      checkAutoStart(r);
+    });
+    socket.on('agent:action', ({ action, raiseTotal }) => {
+      const r = rooms.get(socket.data.roomId || 1);
+      if (r?.engine?.pendingAgentResolve) {
+        r.engine.pendingAgentResolve({ action, raiseTotal });
+        r.engine.pendingAgentResolve = null;
+      }
+    });
+    socket.on('disconnect', () => {
+      const r = rooms.get(socket.data.roomId);
+      if (r) {
+        if (r.engine.agentSocket?.id === socket.id) r.engine.agentSocket = null;
+        removeFromLobby(r, socket.id);
+        emitLobby(r);
+      }
+      console.log(`[Agent] ${socket.data.agentUser.username} disconnected`);
+    });
+    return; // agent sockets don't go through the normal flow below
   }
 
   // Client asks to switch rooms

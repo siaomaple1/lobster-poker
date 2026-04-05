@@ -17,6 +17,7 @@ try { db.exec(`ALTER TABLE games ADD COLUMN room_id INTEGER NOT NULL DEFAULT 1`)
 try { db.exec(`ALTER TABLE users ADD COLUMN lobster_name TEXT`);   } catch (_) {}
 try { db.exec(`ALTER TABLE users ADD COLUMN lobster_prompt TEXT`);  } catch (_) {}
 try { db.exec(`ALTER TABLE users ADD COLUMN lobster_model TEXT`);   } catch (_) {}
+try { db.exec(`ALTER TABLE users ADD COLUMN agent_token TEXT UNIQUE`); } catch (_) {}
 
 // ── Schema ─────────────────────────────────────────────────────────────────
 db.exec(`
@@ -108,6 +109,8 @@ const stmts = {
     RETURNING *
   `),
   getUserById: db.prepare('SELECT * FROM users WHERE id = ?'),
+  getUserByAgentToken: db.prepare('SELECT * FROM users WHERE agent_token = ?'),
+  setAgentToken: db.prepare('UPDATE users SET agent_token = ? WHERE id = ?'),
 
   // Coins — reset to 1M if last reset was > 1 hour ago
   getCoins: db.prepare(`
