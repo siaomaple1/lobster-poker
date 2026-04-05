@@ -1,0 +1,260 @@
+'use strict';
+
+const { PokerHand } = require('./poker');
+const { getAIAction } = require('./ai-player');
+const { stmts } = require('../db/database');
+
+const BETTING_WINDOW_MS = 15000;  // 15s for users to place bets
+const ACTION_DELAY_MS   = 1500;   // delay between AI actions for readability
+const HAND_END_DELAY_MS = 4000;   // pause after showdown before next hand
+
+const AI_MODELS = ['claude', 'gpt', 'deepseek', 'gemini', 'grok', 'qwen', 'mistral', 'cohere', 'groq'];
+const STARTING_CHIPS = 10000;
+
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+class GameEngine {
+  constructor(io, roomId = 1) {
+    this.io      = io;           // Socket.io server instance
+    this.roomId  = roomId;       // which room this engine belongs to
+    this.apiKeys = {};           // { claude: 'sk-...', gpt: '...', ... }
+    this.running = false;
+    this.gameId = null;
+    this.handNumber = 0;
+    this.seats = [];             // [{ id: 'claude', chips: 10000 }]
+    this.currentHand = null;
+    this.dealerId = null;        // ID of current dealer (null = first hand, start at index 0)
+  }
+
+  emit(event, data) {
+    this.io.to(`table:${this.roomId}`).emit(event, data);
+  }
+
+  // ── Start a new game ────────────────────────────────────────────────────
+  async start(createdBy = null, models = AI_MODELS) {
+    if (this.running) return;
+    this.running = true;
+
+    try {
+      // Create DB record
+      const { id } = stmts.createGame.get(createdBy, this.roomId);
+      this.gameId = id;
+
+      // Track who started the game
+      this.seatOwners = {};
+      const user = createdBy ? stmts.getUserById.get(createdBy) : null;
+      const name = user?.display_name || user?.username || 'Unknown';
+      for (const m of models) { this.seatOwners[m] = name; }
+
+      // Init seats — only the models that have keys
+      this.seats = models.map(model => {
+        stmts.insertSeat.run(id, model);
+        stmts.ensureAiStats.run(model);
+        return { id: model, chips: STARTING_CHIPS };
+      });
+
+      console.log(`[Game ${id}] Started`);
+      this.emit('game:start', { gameId: id, seats: this.seats });
+
+      while (this.running && this.activePlayers().length > 1) {
+        await this.runHand();
+      }
+
+      this.finish();
+    } catch (err) {
+      this.running = false;
+      throw err;
+    }
+  }
+
+  activePlayers() {
+    return this.seats.filter(s => s.chips > 0);
+  }
+
+  // ── Single Hand ─────────────────────────────────────────────────────────
+  async runHand() {
+    this.handNumber++;
+    stmts.incrementHand.run(this.gameId);
+
+    const active = this.activePlayers();
+    if (active.length < 2) return;
+
+    // Find current dealer by ID (survives player eliminations cleanly)
+    let dealerPos = 0;
+    if (this.dealerId !== null) {
+      const found = active.findIndex(s => s.id === this.dealerId);
+      dealerPos = found >= 0 ? found : 0;
+    }
+    const rotated = [
+      ...active.slice(dealerPos),
+      ...active.slice(0, dealerPos),
+    ];
+    // Advance dealer to next alive player for next hand
+    this.dealerId = active[(dealerPos + 1) % active.length].id;
+
+    // ── Betting Window ─────────────────────────────────────────────────
+    this.emit('game:betting_window', {
+      gameId:     this.gameId,
+      handNumber: this.handNumber,
+      duration:   BETTING_WINDOW_MS,
+      models:     active.map(s => s.id),
+    });
+    await sleep(BETTING_WINDOW_MS);
+    this.emit('game:betting_closed', { handNumber: this.handNumber });
+
+    // ── Deal ───────────────────────────────────────────────────────────
+    const hand = new PokerHand(rotated.map(s => ({ id: s.id, chips: s.chips })));
+    this.currentHand = hand;
+
+    this.emit('game:hand_start', {
+      handNumber: this.handNumber,
+      state:      hand.getPublicState(),
+      dealer:     rotated[0].id,
+    });
+
+    // ── Action Loop ────────────────────────────────────────────────────
+    let result = { status: 'action', actorId: hand.getActorId(), state: hand.getPublicState() };
+
+    while (result.status === 'action') {
+      const actorId = result.actorId;
+      this.emit('game:thinking', { actorId, state: result.state });
+
+      // Get AI decision
+      const gameStateForAI = hand.getStateForPlayer(actorId);
+      const { action, raiseTotal, thought } = await getAIAction(actorId, this.apiKeys, gameStateForAI, hand.log);
+
+      await sleep(ACTION_DELAY_MS);
+
+      result = hand.processAction(action, raiseTotal);
+
+      this.emit('game:action', {
+        actorId,
+        action,
+        raiseTotal:  raiseTotal || null,
+        thought:     thought || null,
+        ownerName:   this.seatOwners?.[actorId] || null,
+        state:       result.state || hand.getPublicState(),
+      });
+
+      await sleep(500);
+    }
+
+    // ── Showdown ───────────────────────────────────────────────────────
+    const { winnerId, winnerHand, pot, state, log } = result;
+
+    this.emit('game:showdown', { winnerId, winnerHand, pot, state });
+    await sleep(HAND_END_DELAY_MS);
+
+    // ── Update state from hand ─────────────────────────────────────────
+    for (const hp of hand.players) {
+      const seat = this.seats.find(s => s.id === hp.id);
+      if (seat) seat.chips = hp.chips;
+    }
+
+    // DB updates
+    for (const hp of hand.players) {
+      stmts.updateSeat.run(hp.chips, this.gameId, hp.id);
+      stmts.recordHandResult.run(hp.id === winnerId ? 1 : 0, hp.id);
+    }
+    stmts.recordWin.run(this.gameId, winnerId);
+
+    // Save hand to DB
+    stmts.insertHand.get({
+      game_id:      this.gameId,
+      hand_number:  this.handNumber,
+      winner_model: winnerId,
+      pot,
+      community:    JSON.stringify(hand.board.map(c => `${c.rank}${c.suit}`)),
+      log:          JSON.stringify(log),
+    });
+
+    // ── Settle user bets ───────────────────────────────────────────────
+    this._settleBets(winnerId);
+
+    // Eliminate bust players
+    for (const seat of this.seats) {
+      if (seat.chips <= 0) {
+        stmts.eliminateSeat.run(this.gameId, seat.id);
+      }
+    }
+
+    this.emit('game:hand_end', {
+      handNumber:  this.handNumber,
+      winnerId,
+      winnerHand,
+      pot,
+      seats:       this.seats,
+    });
+  }
+
+  _settleBets(winnerId) {
+    const bets = stmts.getBetsForHand.all(this.gameId, this.handNumber);
+    if (!bets.length) return;
+
+    const totalPool   = bets.reduce((s, b) => s + b.amount, 0);
+    const winnerBets  = bets.filter(b => b.model === winnerId);
+    const winnerPool  = winnerBets.reduce((s, b) => s + b.amount, 0);
+
+    for (const bet of bets) {
+      let payout = 0;
+      if (bet.model === winnerId && winnerPool > 0) {
+        payout = Math.floor((bet.amount / winnerPool) * totalPool);
+        stmts.addCoins.run(payout, bet.user_id);
+      }
+      stmts.settleBet.run(payout, bet.id);
+    }
+
+    this.emit('game:payouts', {
+      handNumber: this.handNumber,
+      winnerId,
+      payouts: bets.map(b => ({
+        userId: b.user_id,
+        model:  b.model,
+        bet:    b.amount,
+        payout: b.model === winnerId ? Math.floor((b.amount / (winnerPool || 1)) * totalPool) : 0,
+      })),
+    });
+  }
+
+  finish() {
+    const alive = this.activePlayers();
+    let finalWinner = null;
+    if (alive.length === 1) {
+      finalWinner = alive[0].id;
+    } else if (alive.length > 1) {
+      // Stopped early — pick the player with the most chips
+      finalWinner = alive.reduce((a, b) => (b.chips > a.chips ? b : a)).id;
+    }
+
+    stmts.endGame.run(this.gameId);
+    this.running = false;
+    this.currentHand = null;
+
+    this.emit('game:end', {
+      gameId: this.gameId,
+      winner: finalWinner,
+      seats:  this.seats,
+    });
+
+    console.log(`[Game ${this.gameId}] Ended. Winner: ${finalWinner}`);
+  }
+
+  stop() {
+    this.running = false;
+  }
+
+  getStatus() {
+    return {
+      roomId:     this.roomId,
+      running:    this.running,
+      gameId:     this.gameId,
+      handNumber: this.handNumber,
+      seats:      this.seats,
+      stage:      this.currentHand?.stage || null,
+    };
+  }
+}
+
+module.exports = { GameEngine, AI_MODELS };

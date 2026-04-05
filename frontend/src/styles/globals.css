@@ -1,0 +1,47 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --felt:       #1a5c2e;
+  --felt-dark:  #122b18;
+  --surface:    #1e1e1e;
+  --surface-2:  #2a2a2a;
+  --lobster:    #e8401a;
+  --gold:       #f5c842;
+  --text:       #f0ede8;
+  --text-muted: #9ca3af;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: #111;
+  color: var(--text);
+  font-family: 'Inter', sans-serif;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: #1e1e1e; }
+::-webkit-scrollbar-thumb { background: #444; border-radius: 3px; }
+
+/* Card styles */
+.card-red  { color: #e53e3e; }
+.card-black { color: #f0ede8; }
+
+/* Chip glow */
+.chip-glow {
+  box-shadow: 0 0 12px rgba(245, 200, 66, 0.5);
+}
+
+/* Felt texture */
+.felt-bg {
+  background: radial-gradient(ellipse at center, #1e7a3a 0%, #1a5c2e 50%, #122b18 100%);
+}
