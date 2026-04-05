@@ -5,8 +5,8 @@ const api = axios.create({
   withCredentials: true,
 });
 
-export async function getMe()       { return (await api.get('/auth/me',      { baseURL: '/' })).data; }
-export async function logout()      { return (await api.post('/auth/logout',  { baseURL: '/' })).data; }
+export async function getMe()       { return (await api.get('/auth/me',             { baseURL: '/' })).data; }
+export async function logout()      { return (await api.post('/auth/logout', null, { baseURL: '/' })).data; }
 export async function getCoins()    { return (await api.get('/coins')).data; }
 export async function getApiKeys()  { return (await api.get('/api-keys')).data; }
 export async function saveApiKey(model, apiKey) {
