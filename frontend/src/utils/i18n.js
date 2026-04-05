@@ -153,6 +153,14 @@ const translations = {
       empty:    'No games played yet. Start a game to see stats!',
     },
 
+    webView: {
+      warning:       "Google sign-in doesn't work inside in-app browsers (WeChat, Instagram, etc.)",
+      instruction:   'Please open this page in Safari or Chrome.',
+      copyLink:      'Copy Link',
+      copied:        'Copied!',
+      openInBrowser: 'Open in Browser',
+    },
+
     bugReport: {
       title:                  '🐛 Report a Bug',
       prefillRoom:            'Room',
@@ -368,6 +376,14 @@ const translations = {
       savedOk:        '保存成功',
       errorPrefix:    '错误：',
       footer:         '密钥仅用于游戏中调用 API，不会被共享。按 Enter 保存，按 Escape 取消。',
+    },
+
+    webView: {
+      warning:       '在微信、Instagram 等 App 内置浏览器中无法使用 Google 登录',
+      instruction:   '请用 Safari 或 Chrome 浏览器打开本页面。',
+      copyLink:      '复制链接',
+      copied:        '已复制',
+      openInBrowser: '在浏览器中打开',
     },
 
     bugReport: {
