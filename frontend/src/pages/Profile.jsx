@@ -3,7 +3,7 @@ import { Link, Navigate } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore.js';
 import { getCoins, getMyBets, getLobster, saveLobster, getApiKeys } from '../utils/api.js';
 import { formatCoins, formatTimer } from '../utils/format.js';
-import { AI_MODELS } from '../utils/constants.js';
+import { AI_MODELS, MODEL_MAP } from '../utils/constants.js';
 
 export default function Profile() {
   const { user } = useAuthStore();
@@ -185,7 +185,7 @@ function BetHistory() {
           <div key={b.id} className="flex items-center justify-between text-sm p-2 rounded-lg bg-[#2a2a2a]">
             <div className="flex items-center gap-2">
               <span className="text-gray-400">Hand #{b.hand_number}</span>
-              <span className="font-medium text-white">{b.model}</span>
+              <span className="font-medium text-white">{MODEL_MAP[b.model]?.label || b.model}</span>
               <span className="text-gray-500">·</span>
               <span className="font-mono text-gray-400">{formatCoins(b.amount)} bet</span>
             </div>

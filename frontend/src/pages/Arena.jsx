@@ -202,7 +202,7 @@ export default function Arena() {
 }
 
 function LobbyPanel({ user }) {
-  const { lobbyPlayers } = useGameStore();
+  const { lobbyPlayers, lobbyError } = useGameStore();
   const [countdown, setCountdown] = useState(8);
 
   const myEntry = user ? lobbyPlayers.find(p => p.id === user.id) : null;
@@ -267,6 +267,11 @@ function LobbyPanel({ user }) {
         <a href="/login" className="block text-center text-xs text-lobster hover:underline">
           Sign in to join the lobby →
         </a>
+      )}
+      {lobbyError && (
+        <div className="text-red-400 text-xs text-center bg-red-900/20 border border-red-800/40 rounded-lg px-3 py-2">
+          ⚠️ {lobbyError}
+        </div>
       )}
     </div>
   );

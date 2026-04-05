@@ -67,11 +67,11 @@ export default function Leaderboard() {
                       <div className="w-20 h-2 bg-[#333] rounded-full overflow-hidden">
                         <div
                           className="h-full rounded-full"
-                          style={{ width: `${row.win_rate}%`, backgroundColor: model.color }}
+                          style={{ width: `${row.win_rate ?? 0}%`, backgroundColor: model.color }}
                         />
                       </div>
                       <span className="font-mono font-bold text-white w-14 text-right">
-                        {row.win_rate}%
+                        {row.win_rate ?? 0}%
                       </span>
                     </div>
                   </td>

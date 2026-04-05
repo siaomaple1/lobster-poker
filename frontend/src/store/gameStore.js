@@ -9,7 +9,7 @@ export const useGameStore = create((set, get) => ({
       running: false, gameId: null, handNumber: 0, seats: [],
       stage: null, board: [], pot: 0, maxBet: 0, actorId: null, players: [],
       bettingOpen: false, bettingEndsAt: null, log: [], chatMessages: [],
-      lastWinner: null, lastWinHand: null, lobbyPlayers: [],
+      lastWinner: null, lastWinHand: null, lobbyPlayers: [], lobbyError: null,
     });
   },
 
@@ -40,8 +40,13 @@ export const useGameStore = create((set, get) => ({
 
   // ── Lobby ─────────────────────────────────────────────────────────────────
   lobbyPlayers: [],
+  lobbyError: null,
   handleLobbyUpdate(data) {
     set({ lobbyPlayers: data.players || [] });
+  },
+  handleLobbyError(data) {
+    set({ lobbyError: data.error });
+    setTimeout(() => set({ lobbyError: null }), 5000);
   },
 
   // ── Last hand result ─────────────────────────────────────────────────────
