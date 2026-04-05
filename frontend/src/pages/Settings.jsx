@@ -79,12 +79,32 @@ export default function Settings() {
           <h1 className="text-2xl font-bold text-white">🔑 API Keys</h1>
           <p className="text-gray-400 text-sm mt-1">
             Add your AI provider keys so each model can play poker.
-            Keys are stored securely and never returned in full.
           </p>
         </div>
         <div className="text-sm text-gray-500 shrink-0">
           <span className="text-white font-bold">{keyCount}</span> / {AI_MODELS.length} set
         </div>
+      </div>
+
+      {/* Security notice */}
+      <div className="bg-[#1a2a1a] border border-green-800/50 rounded-2xl p-4 space-y-2.5">
+        <div className="flex items-center gap-2 text-green-400 font-semibold text-sm">
+          🔒 关于 API Key 安全
+        </div>
+        <ul className="space-y-2 text-sm text-gray-300">
+          <li className="flex items-start gap-2">
+            <span className="text-green-500 mt-0.5 shrink-0">✓</span>
+            <span>你的 key <strong className="text-white">只在游戏期间</strong>用于调用对应 AI 模型的 API，不会用于其他任何用途。</span>
+          </li>
+          <li className="flex items-start gap-2">
+            <span className="text-green-500 mt-0.5 shrink-0">✓</span>
+            <span>Key 加密存储在服务器数据库中，查询接口只返回脱敏版本（如 <span className="font-mono text-gray-400 text-xs">sk-a••••xyz</span>），原始 key 不会通过任何接口返回。</span>
+          </li>
+          <li className="flex items-start gap-2">
+            <span className="text-yellow-400 mt-0.5 shrink-0">💡</span>
+            <span>建议在 AI 平台为本站<strong className="text-white">单独创建一个新 key</strong>，并设置消费限额（如 $5/月），这样即使出现意外也不会影响你的主要账户。</span>
+          </li>
+        </ul>
       </div>
 
       {/* Model list */}
