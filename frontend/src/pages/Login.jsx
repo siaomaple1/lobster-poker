@@ -5,8 +5,6 @@ import { useT } from '../utils/i18n.js';
 
 const PROVIDERS = [
   { id: 'google',  label: 'Google',      icon: '🔵', color: 'hover:bg-blue-600' },
-  { id: 'github',  label: 'GitHub',      icon: '⚫', color: 'hover:bg-gray-600' },
-  { id: 'discord', label: 'Discord',     icon: '🟣', color: 'hover:bg-indigo-600' },
   { id: 'twitter', label: 'X / Twitter', icon: '⬛', color: 'hover:bg-slate-600' },
 ];
 
@@ -18,7 +16,7 @@ function detectWebView() {
   // iOS in-app browser: has iPhone/iPad but no standalone Safari
   if (/iPhone|iPad|iPod/.test(ua) && !/Safari/.test(ua)) return true;
   // Common in-app browsers
-  if (/(FBAN|FBAV|Instagram|MicroMessenger|Line\/|Snapchat|TikTok|Twitter\/)/.test(ua)) return true;
+  if (/(FBAN|FBAV|Instagram|MicroMessenger|Line\/|Snapchat|TikTok|Twitter\/|WhatsApp)/.test(ua)) return true;
   return false;
 }
 
