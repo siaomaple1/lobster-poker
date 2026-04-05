@@ -17,7 +17,8 @@ try { db.exec(`ALTER TABLE games ADD COLUMN room_id INTEGER NOT NULL DEFAULT 1`)
 try { db.exec(`ALTER TABLE users ADD COLUMN lobster_name TEXT`);   } catch (_) {}
 try { db.exec(`ALTER TABLE users ADD COLUMN lobster_prompt TEXT`);  } catch (_) {}
 try { db.exec(`ALTER TABLE users ADD COLUMN lobster_model TEXT`);   } catch (_) {}
-try { db.exec(`ALTER TABLE users ADD COLUMN agent_token TEXT UNIQUE`); } catch (_) {}
+try { db.exec(`ALTER TABLE users ADD COLUMN agent_token TEXT`); } catch (_) {}
+try { db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_users_agent_token ON users(agent_token) WHERE agent_token IS NOT NULL`); } catch (_) {}
 
 // ── Schema ─────────────────────────────────────────────────────────────────
 db.exec(`
