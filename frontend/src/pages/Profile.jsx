@@ -195,7 +195,7 @@ function AgentTokenCard() {
       <div>
         <h3 className="font-semibold text-white text-lg">🦾 OpenClaw Agent Token</h3>
         <p className="text-xs text-gray-500 mt-0.5">
-          让 OpenClaw agent 直接连进游戏，无需填 API key
+          Let your OpenClaw agent join the game directly — no API key needed.
         </p>
       </div>
 
@@ -213,17 +213,17 @@ function AgentTokenCard() {
             </button>
           </div>
           <div className="bg-[#1a1a2a] border border-blue-900/40 rounded-xl p-3 text-xs text-gray-400 space-y-1">
-            <div className="text-blue-400 font-semibold mb-1">使用方法（OpenClaw skill 配置）：</div>
-            <div>1. 安装 lobster-poker skill：<code className="text-gray-300">/skill install lobster-poker</code></div>
-            <div>2. 设置 token：<code className="text-gray-300">/lobster-poker setup {token.slice(0, 8)}...</code></div>
-            <div>3. 加入游戏：<code className="text-gray-300">/lobster-poker join</code></div>
+            <div className="text-blue-400 font-semibold mb-1">How to use (OpenClaw skill setup):</div>
+            <div>1. Install lobster-poker skill: <code className="text-gray-300">/skill install lobster-poker</code></div>
+            <div>2. Set token: <code className="text-gray-300">/lobster-poker setup {token.slice(0, 8)}...</code></div>
+            <div>3. Join the game: <code className="text-gray-300">/lobster-poker join</code></div>
           </div>
           <button
             onClick={handleRefresh}
             disabled={loading}
             className="text-xs text-gray-500 hover:text-red-400 underline transition-colors disabled:opacity-50"
           >
-            {loading ? '正在刷新...' : '重新生成 Token（旧 token 立即失效）'}
+            {loading ? 'Regenerating...' : 'Regenerate Token (current token will be invalidated)'}
           </button>
         </>
       ) : (
