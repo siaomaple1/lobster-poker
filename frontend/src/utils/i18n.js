@@ -112,8 +112,11 @@ const translations = {
       agentStep1:     '1. Install lobster-poker skill:',
       agentStep2:     '2. Set token:',
       agentStep3:     '3. Join the game:',
-      regenerate:     'Regenerate Token (current token will be invalidated)',
-      regenerating:   'Regenerating...',
+      rotateToken:    'Rotate Token (current token will be invalidated)',
+      rotateConfirm:  'Rotate token? The current token will stop working.',
+      regenerating:   'Rotating...',
+      show:           'Show',
+      hide:           'Hide',
       recentBets:     '📋 Recent Bets',
       pending:        'Pending',
       loading:        'Loading...',
@@ -148,6 +151,27 @@ const translations = {
       wins:     'Wins',
       hands:    'Hands',
       empty:    'No games played yet. Start a game to see stats!',
+    },
+
+    bugReport: {
+      title:                  '🐛 Report a Bug',
+      prefillRoom:            'Room',
+      prefillHand:            'Hand',
+      prefillBrowser:         'Browser',
+      whatHappened:           'What happened?',
+      whatHappenedPlaceholder:'Describe what went wrong...',
+      expected:               'What did you expect?',
+      expectedPlaceholder:    'Describe what should have happened...',
+      submit:                 'Submit Report',
+      submitting:             'Submitting...',
+      success:                'Bug reported! Thanks for helping improve the game.',
+      cancel:                 'Cancel',
+    },
+
+    toast: {
+      deleteFailed: 'Failed to delete key. Please try again.',
+      chatFailed:   'Failed to send message. Please try again.',
+      genericError: 'Something went wrong. Please try again.',
     },
 
     howToPlay: {
@@ -316,8 +340,11 @@ const translations = {
       agentStep1:     '1. 安装 lobster-poker 技能：',
       agentStep2:     '2. 设置令牌：',
       agentStep3:     '3. 加入游戏：',
-      regenerate:     '重新生成令牌（当前令牌将失效）',
-      regenerating:   '重新生成中...',
+      rotateToken:    '轮换令牌（当前令牌将失效）',
+      rotateConfirm:  '确认轮换令牌？当前令牌将立即失效。',
+      regenerating:   '轮换中...',
+      show:           '显示',
+      hide:           '隐藏',
       recentBets:     '📋 近期投注',
       pending:        '待结算',
       loading:        '加载中...',
@@ -341,6 +368,27 @@ const translations = {
       savedOk:        '保存成功',
       errorPrefix:    '错误：',
       footer:         '密钥仅用于游戏中调用 API，不会被共享。按 Enter 保存，按 Escape 取消。',
+    },
+
+    bugReport: {
+      title:                  '🐛 反馈 Bug',
+      prefillRoom:            '房间',
+      prefillHand:            '手牌',
+      prefillBrowser:         '浏览器',
+      whatHappened:           '发生了什么？',
+      whatHappenedPlaceholder:'描述遇到的问题...',
+      expected:               '期望的结果是什么？',
+      expectedPlaceholder:    '描述本应发生的情况...',
+      submit:                 '提交反馈',
+      submitting:             '提交中...',
+      success:                'Bug 已提交！感谢帮助改进游戏。',
+      cancel:                 '取消',
+    },
+
+    toast: {
+      deleteFailed: '删除密钥失败，请重试。',
+      chatFailed:   '发送消息失败，请重试。',
+      genericError: '操作失败，请重试。',
     },
 
     leaderboard: {

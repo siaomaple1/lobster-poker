@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore.js';
 import { useT } from '../utils/i18n.js';
+import { useToastStore } from '../store/toastStore.js';
 import { AI_MODELS } from '../utils/constants.js';
 import { getApiKeys, saveApiKey, deleteApiKey } from '../utils/api.js';
 
@@ -20,6 +21,7 @@ const MODEL_META = {
 export default function Settings() {
   const { user } = useAuthStore();
   const t = useT();
+  const { show: showToast } = useToastStore();
   if (!user) return <Navigate to="/login" replace />;
 
   const [keys, setKeys]       = useState({});
@@ -63,7 +65,9 @@ export default function Settings() {
       await deleteApiKey(id);
       setKeys(k => ({ ...k, [id]: null }));
       setStatus(s => ({ ...s, [id]: null }));
-    } catch {}
+    } catch {
+      showToast(t.toast.deleteFailed, 'error');
+    }
   };
 
   const onKeyDown = (e, id) => {

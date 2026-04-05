@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { useGameStore } from '../../store/gameStore.js';
 import { useAuthStore } from '../../store/authStore.js';
 import { useT } from '../../utils/i18n.js';
+import { useToastStore } from '../../store/toastStore.js';
 import { getSocket } from '../../hooks/useSocket.js';
 import { MODEL_MAP } from '../../utils/constants.js';
 import { formatCoins } from '../../utils/format.js';
@@ -114,6 +115,7 @@ function ChatPanel() {
   const { chatMessages } = useGameStore();
   const { user } = useAuthStore();
   const t = useT();
+  const { show: showToast } = useToastStore();
   const [text, setText] = useState('');
   const bottomRef = useRef(null);
 
@@ -124,7 +126,12 @@ function ChatPanel() {
   const handleSend = () => {
     const msg = text.trim();
     if (!msg || !user) return;
-    getSocket().emit('chat:send', { message: msg });
+    const s = getSocket();
+    if (!s.connected) {
+      showToast(t.toast.chatFailed, 'error');
+      return;
+    }
+    s.emit('chat:send', { message: msg });
     setText('');
   };
 

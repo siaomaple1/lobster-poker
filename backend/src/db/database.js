@@ -19,6 +19,17 @@ try { db.exec(`ALTER TABLE users ADD COLUMN lobster_prompt TEXT`);  } catch (_) 
 try { db.exec(`ALTER TABLE users ADD COLUMN lobster_model TEXT`);   } catch (_) {}
 try { db.exec(`ALTER TABLE users ADD COLUMN agent_token TEXT`); } catch (_) {}
 try { db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_users_agent_token ON users(agent_token) WHERE agent_token IS NOT NULL`); } catch (_) {}
+try { db.exec(`CREATE TABLE IF NOT EXISTS bug_reports (
+  id           INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id      INTEGER REFERENCES users(id),
+  username     TEXT,
+  room_id      INTEGER,
+  hand_number  INTEGER,
+  browser      TEXT,
+  what_happened TEXT,
+  expected     TEXT,
+  created_at   INTEGER NOT NULL DEFAULT (strftime('%s','now'))
+)`); } catch (_) {}
 
 // ── Schema ─────────────────────────────────────────────────────────────────
 db.exec(`
@@ -166,6 +177,13 @@ const stmts = {
   getBetsForHand: db.prepare(`SELECT * FROM user_bets WHERE game_id = ? AND hand_number = ?`),
   settleBet: db.prepare(`UPDATE user_bets SET settled = 1, payout = ? WHERE id = ?`),
   getUserBets: db.prepare(`SELECT * FROM user_bets WHERE user_id = ? ORDER BY placed_at DESC LIMIT 50`),
+
+  // Bug Reports
+  insertBugReport: db.prepare(`
+    INSERT INTO bug_reports (user_id, username, room_id, hand_number, browser, what_happened, expected)
+    VALUES (@user_id, @username, @room_id, @hand_number, @browser, @what_happened, @expected)
+  `),
+  getBugReports: db.prepare(`SELECT * FROM bug_reports ORDER BY created_at DESC LIMIT 100`),
 
   // AI Stats
   ensureAiStats: db.prepare(`INSERT OR IGNORE INTO ai_stats (model) VALUES (?)`),

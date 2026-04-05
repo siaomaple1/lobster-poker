@@ -174,25 +174,33 @@ function MyLobsterCard({ user, t }) {
 }
 
 function AgentTokenCard({ t }) {
-  const [token, setToken]     = useState(null);
-  const [copied, setCopied]   = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [token, setToken]       = useState(null);
+  const [visible, setVisible]   = useState(false);
+  const [copied, setCopied]     = useState(false);
+  const [rotating, setRotating] = useState(false);
 
   useEffect(() => {
     getAgentToken().then(d => setToken(d.token)).catch(() => {});
   }, []);
 
   const handleCopy = () => {
+    if (!token) return;
     navigator.clipboard.writeText(token);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const handleRefresh = async () => {
-    setLoading(true);
-    try { setToken((await refreshAgentToken()).token); } catch {}
-    setLoading(false);
+  const handleRotate = async () => {
+    if (!window.confirm(t.profile.rotateConfirm)) return;
+    setRotating(true);
+    try {
+      setToken((await refreshAgentToken()).token);
+      setVisible(false);
+    } catch {}
+    setRotating(false);
   };
+
+  const maskedToken = '••••••••••••••••••••••••••••••••';
 
   return (
     <div className="bg-[#1e1e1e] border border-[#333] rounded-2xl p-6 space-y-3">
@@ -205,8 +213,15 @@ function AgentTokenCard({ t }) {
         <>
           <div className="flex items-center gap-2">
             <code className="flex-1 bg-[#111] border border-[#333] rounded-lg px-3 py-2 text-xs font-mono text-gray-300 truncate">
-              {token}
+              {visible ? token : maskedToken}
             </code>
+            <button
+              onClick={() => setVisible(v => !v)}
+              className="shrink-0 bg-[#2a2a2a] hover:bg-[#333] border border-[#444] text-gray-400 text-xs px-3 py-2 rounded-lg transition-colors"
+              title={visible ? t.profile.hide : t.profile.show}
+            >
+              {visible ? '🙈' : '👁️'}
+            </button>
             <button
               onClick={handleCopy}
               className="shrink-0 bg-[#2a2a2a] hover:bg-[#333] border border-[#444] text-gray-300 text-xs px-3 py-2 rounded-lg transition-colors"
@@ -221,11 +236,11 @@ function AgentTokenCard({ t }) {
             <div>{t.profile.agentStep3} <code className="text-gray-300">/lobster-poker join</code></div>
           </div>
           <button
-            onClick={handleRefresh}
-            disabled={loading}
+            onClick={handleRotate}
+            disabled={rotating}
             className="text-xs text-gray-500 hover:text-red-400 underline transition-colors disabled:opacity-50"
           >
-            {loading ? t.profile.regenerating : t.profile.regenerate}
+            {rotating ? t.profile.regenerating : t.profile.rotateToken}
           </button>
         </>
       ) : (

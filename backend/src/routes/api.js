@@ -147,6 +147,24 @@ router.get('/leaderboard', (req, res) => {
   res.json(result);
 });
 
+// ── Bug Reports ────────────────────────────────────────────────────────────
+router.post('/bug-reports', (req, res) => {
+  const { roomId, handNumber, browser, whatHappened, expected } = req.body;
+  if (!whatHappened || typeof whatHappened !== 'string' || !whatHappened.trim()) {
+    return res.status(400).json({ error: 'Please describe what happened' });
+  }
+  stmts.insertBugReport.run({
+    user_id:       req.user?.id || null,
+    username:      req.user?.username || null,
+    room_id:       roomId   || null,
+    hand_number:   handNumber || null,
+    browser:       browser   ? String(browser).slice(0, 300) : null,
+    what_happened: String(whatHappened).trim().slice(0, 2000),
+    expected:      expected ? String(expected).trim().slice(0, 2000) : null,
+  });
+  res.json({ ok: true });
+});
+
 // ── Rooms ──────────────────────────────────────────────────────────────────
 const MAX_ROOMS = 5;
 

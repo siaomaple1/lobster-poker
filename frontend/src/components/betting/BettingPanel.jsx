@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useGameStore } from '../../store/gameStore.js';
 import { useAuthStore } from '../../store/authStore.js';
 import { useT } from '../../utils/i18n.js';
+import { useToastStore } from '../../store/toastStore.js';
 import { AI_MODELS } from '../../utils/constants.js';
 import { formatCoins } from '../../utils/format.js';
 import { placeBet, getCoins } from '../../utils/api.js';
@@ -12,6 +13,7 @@ export default function BettingPanel() {
   const { bettingOpen, bettingEndsAt, handNumber } = useGameStore();
   const { user } = useAuthStore();
   const t = useT();
+  const { show: showToast } = useToastStore();
 
   const [selected, setSelected] = useState(null);
   const [amount, setAmount]     = useState(1000);
@@ -47,6 +49,8 @@ export default function BettingPanel() {
       setCoins(c => c - amount);
     } catch (e) {
       setResult('error');
+      const msg = e.response?.data?.error || t.betting.betError;
+      showToast(msg, 'error');
     }
     setPlacing(false);
   };

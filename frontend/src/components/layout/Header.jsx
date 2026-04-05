@@ -5,6 +5,7 @@ import { useT } from '../../utils/i18n.js';
 import { formatCoins } from '../../utils/format.js';
 import { useEffect, useState } from 'react';
 import { getCoins } from '../../utils/api.js';
+import ReportBug from '../ReportBug.jsx';
 
 export default function Header() {
   const { user, logout } = useAuthStore();
@@ -55,6 +56,9 @@ export default function Header() {
 
       {/* Right side: coins + lang toggle + user */}
       <div className="flex items-center gap-1.5 md:gap-2 flex-shrink-0">
+        {/* Bug report */}
+        <ReportBug />
+
         {/* Language toggle */}
         <button
           onClick={toggle}
