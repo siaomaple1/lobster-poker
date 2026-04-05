@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useGameStore } from '../../store/gameStore.js';
 import { useAuthStore } from '../../store/authStore.js';
+import { useT } from '../../utils/i18n.js';
 import { getSocket } from '../../hooks/useSocket.js';
 import { MODEL_MAP } from '../../utils/constants.js';
 import { formatCoins } from '../../utils/format.js';
@@ -21,6 +22,7 @@ const ACTION_ICONS = {
 
 export default function ActionLog() {
   const [tab, setTab] = useState('log');
+  const t = useT();
 
   const tabBtn = (id, label) => (
     <button
@@ -36,21 +38,18 @@ export default function ActionLog() {
 
   return (
     <div className="bg-[#1a1a1a] border border-[#333] rounded-2xl flex flex-col h-64">
-      {/* Tab bar */}
       <div className="flex border-b border-[#333] flex-shrink-0">
-        {tabBtn('log',  'Action Log')}
-        {tabBtn('chat', '💬 Chat')}
+        {tabBtn('log',  t.log.logTab)}
+        {tabBtn('chat', t.log.chatTab)}
       </div>
-
       {tab === 'log' ? <LogPanel /> : <ChatPanel />}
     </div>
   );
 }
 
-// ── Action Log ───────────────────────────────────────────────────────────────
-
 function LogPanel() {
   const { log } = useGameStore();
+  const t = useT();
   const bottomRef = useRef(null);
 
   useEffect(() => {
@@ -60,7 +59,7 @@ function LogPanel() {
   return (
     <div className="flex-1 overflow-y-auto p-3 space-y-1 font-mono text-xs">
       {log.length === 0 && (
-        <div className="text-gray-600 text-center pt-4">Waiting for game...</div>
+        <div className="text-gray-600 text-center pt-4">{t.log.waitingGame}</div>
       )}
       {log.map((entry, i) => <LogEntry key={i} entry={entry} />)}
       <div ref={bottomRef} />
@@ -111,11 +110,10 @@ function LogEntry({ entry }) {
   return null;
 }
 
-// ── Chat ─────────────────────────────────────────────────────────────────────
-
 function ChatPanel() {
   const { chatMessages } = useGameStore();
   const { user } = useAuthStore();
+  const t = useT();
   const [text, setText] = useState('');
   const bottomRef = useRef(null);
 
@@ -136,11 +134,10 @@ function ChatPanel() {
 
   return (
     <div className="flex flex-col flex-1 min-h-0">
-      {/* Messages */}
       <div className="flex-1 overflow-y-auto p-3 space-y-1.5 text-xs">
         {chatMessages.length === 0 && (
           <div className="text-gray-600 text-center pt-4">
-            {user ? 'Be the first to say something!' : 'Sign in to chat.'}
+            {user ? t.log.firstMessage : t.log.signInChat}
           </div>
         )}
         {chatMessages.map((msg, i) => (
@@ -149,14 +146,13 @@ function ChatPanel() {
         <div ref={bottomRef} />
       </div>
 
-      {/* Input */}
       {user ? (
         <div className="flex gap-2 p-2 border-t border-[#333] flex-shrink-0">
           <input
             value={text}
             onChange={e => setText(e.target.value)}
             onKeyDown={handleKey}
-            placeholder="Say something..."
+            placeholder={t.log.chatPlaceholder}
             maxLength={300}
             className="flex-1 bg-[#2a2a2a] border border-[#444] rounded-lg px-2.5 py-1.5 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-lobster"
           />
@@ -165,12 +161,13 @@ function ChatPanel() {
             disabled={!text.trim()}
             className="bg-lobster hover:bg-red-700 text-white px-3 py-1.5 rounded-lg text-xs font-semibold disabled:opacity-40 transition-colors"
           >
-            Send
+            {t.log.send}
           </button>
         </div>
       ) : (
         <div className="p-2 border-t border-[#333] text-center text-xs text-gray-600 flex-shrink-0">
-          <a href="/login" className="text-lobster hover:underline">Sign in</a> to chat
+          <a href="/login" className="text-lobster hover:underline">{t.log.signIn}</a>{' '}
+          {t.log.toChat}
         </div>
       )}
     </div>

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useGameStore } from '../../store/gameStore.js';
 import { useAuthStore } from '../../store/authStore.js';
+import { useT } from '../../utils/i18n.js';
 import { AI_MODELS } from '../../utils/constants.js';
 import { formatCoins } from '../../utils/format.js';
 import { placeBet, getCoins } from '../../utils/api.js';
@@ -10,21 +11,20 @@ const QUICK_BETS = [1000, 5000, 10000, 50000, 100000];
 export default function BettingPanel() {
   const { bettingOpen, bettingEndsAt, handNumber } = useGameStore();
   const { user } = useAuthStore();
+  const t = useT();
 
   const [selected, setSelected] = useState(null);
   const [amount, setAmount]     = useState(1000);
   const [coins, setCoins]       = useState(0);
   const [timeLeft, setTimeLeft] = useState(0);
   const [placing, setPlacing]   = useState(false);
-  const [result, setResult]     = useState(null); // 'ok' | 'error'
+  const [result, setResult]     = useState(null);
   const [hasBet, setHasBet]     = useState(false);
 
-  // Fetch coins
   useEffect(() => {
     if (user) getCoins().then(d => setCoins(d.coins)).catch(() => {});
   }, [user, bettingOpen]);
 
-  // Countdown timer
   useEffect(() => {
     if (!bettingOpen || !bettingEndsAt) { setTimeLeft(0); return; }
     setHasBet(false);
@@ -54,7 +54,7 @@ export default function BettingPanel() {
   if (!bettingOpen) {
     return (
       <div className="bg-[#1e1e1e] border border-[#333] rounded-2xl p-4 text-center">
-        <div className="text-gray-500 text-sm">Betting opens at the start of each hand</div>
+        <div className="text-gray-500 text-sm">{t.betting.closedMsg}</div>
       </div>
     );
   }
@@ -67,7 +67,7 @@ export default function BettingPanel() {
       {/* Header + timer */}
       <div>
         <div className="flex items-center justify-between mb-2">
-          <span className="font-semibold text-white">Hand #{handNumber} — Place Your Bet</span>
+          <span className="font-semibold text-white">{t.betting.handHeader(handNumber)}</span>
           <span className={`font-mono font-bold text-lg ${timeLeft <= 5 ? 'text-red-400' : 'text-gold'}`}>
             {timeLeft}s
           </span>
@@ -82,19 +82,22 @@ export default function BettingPanel() {
 
       {!user ? (
         <div className="text-center text-gray-400 text-sm py-4">
-          <a href="/login" className="text-lobster hover:underline">Sign in</a> to place bets
+          <a href="/login" className="text-lobster hover:underline">{t.betting.signInToBet}</a>{' '}
+          {t.betting.signInSuffix}
         </div>
       ) : hasBet ? (
         <div className="text-center py-6">
           <div className="text-4xl mb-2">✅</div>
-          <div className="text-green-400 font-semibold">Bet placed on {selected}!</div>
-          <div className="text-gray-400 text-sm mt-1">{formatCoins(amount)} coins wagered</div>
+          <div className="text-green-400 font-semibold">
+            {t.betting.betPlaced(AI_MODELS.find(m => m.id === selected)?.label || selected)}
+          </div>
+          <div className="text-gray-400 text-sm mt-1">{t.betting.coinsWagered(formatCoins(amount))}</div>
         </div>
       ) : (
         <>
           {/* AI Model selector */}
           <div>
-            <div className="text-xs text-gray-400 uppercase tracking-wider mb-2">Pick your champion</div>
+            <div className="text-xs text-gray-400 uppercase tracking-wider mb-2">{t.betting.pickChampion}</div>
             <div className="grid grid-cols-3 gap-2">
               {AI_MODELS.map(m => (
                 <button
@@ -115,7 +118,7 @@ export default function BettingPanel() {
           {/* Amount */}
           <div>
             <div className="text-xs text-gray-400 uppercase tracking-wider mb-2">
-              Bet amount · Balance: {formatCoins(coins)} 🪙
+              {t.betting.betAmountLabel(formatCoins(coins))}
             </div>
             <div className="flex gap-2 flex-wrap mb-2">
               {QUICK_BETS.map(b => (
@@ -134,7 +137,7 @@ export default function BettingPanel() {
                 onClick={() => setAmount(coins)}
                 className="px-3 py-1.5 rounded-lg text-xs font-mono border border-lobster text-lobster hover:bg-lobster hover:text-white transition-all"
               >
-                All-In
+                {t.betting.allIn}
               </button>
             </div>
             <input
@@ -153,13 +156,15 @@ export default function BettingPanel() {
             className="w-full bg-lobster hover:bg-red-700 disabled:bg-[#333] disabled:text-gray-600
               text-white font-semibold py-3 rounded-xl transition-colors"
           >
-            {placing ? 'Placing...' : selected
-              ? `Bet ${formatCoins(amount)} on ${AI_MODELS.find(m=>m.id===selected)?.label}`
-              : 'Select a model first'}
+            {placing
+              ? t.betting.placing
+              : selected
+                ? t.betting.betOn(formatCoins(amount), AI_MODELS.find(m => m.id === selected)?.label)
+                : t.betting.selectFirst}
           </button>
 
           {result === 'error' && (
-            <div className="text-red-400 text-sm text-center">Failed to place bet. Try again.</div>
+            <div className="text-red-400 text-sm text-center">{t.betting.betError}</div>
           )}
         </>
       )}

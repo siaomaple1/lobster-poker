@@ -1,11 +1,15 @@
 import { Link, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore.js';
+import { useLangStore } from '../../store/langStore.js';
+import { useT } from '../../utils/i18n.js';
 import { formatCoins } from '../../utils/format.js';
 import { useEffect, useState } from 'react';
 import { getCoins } from '../../utils/api.js';
 
 export default function Header() {
   const { user, logout } = useAuthStore();
+  const { lang, toggle } = useLangStore();
+  const t = useT();
   const location = useLocation();
   const [coins, setCoins] = useState(null);
 
@@ -16,10 +20,10 @@ export default function Header() {
   }, [user]);
 
   const nav = [
-    { to: '/',            emoji: '🎰', label: 'Arena' },
-    { to: '/leaderboard', emoji: '🏆', label: 'Leaderboard' },
-    { to: '/settings',    emoji: '🔑', label: 'API Keys' },
-    { to: '/profile',     emoji: '👤', label: 'Profile' },
+    { to: '/',            emoji: '🎰', label: t.nav.arena },
+    { to: '/leaderboard', emoji: '🏆', label: t.nav.leaderboard },
+    { to: '/settings',    emoji: '🔑', label: t.nav.apiKeys },
+    { to: '/profile',     emoji: '👤', label: t.nav.profile },
   ];
 
   return (
@@ -43,16 +47,23 @@ export default function Header() {
                 ? 'bg-felt text-white'
                 : 'text-gray-400 hover:text-white hover:bg-[#2a2a2a]'}`}
           >
-            {/* Mobile: emoji only */}
             <span className="md:hidden text-base">{n.emoji}</span>
-            {/* Desktop: emoji + label */}
             <span className="hidden md:inline">{n.emoji} {n.label}</span>
           </Link>
         ))}
       </nav>
 
-      {/* User */}
-      <div className="flex items-center gap-1.5 md:gap-3 flex-shrink-0">
+      {/* Right side: coins + lang toggle + user */}
+      <div className="flex items-center gap-1.5 md:gap-2 flex-shrink-0">
+        {/* Language toggle */}
+        <button
+          onClick={toggle}
+          className="text-xs font-semibold px-2 py-1.5 rounded-lg border border-[#444] text-gray-400 hover:text-white hover:border-[#666] transition-colors bg-[#1e1e1e] hover:bg-[#2a2a2a]"
+          title={lang === 'en' ? '切换到中文' : 'Switch to English'}
+        >
+          {lang === 'en' ? '中文' : 'EN'}
+        </button>
+
         {user ? (
           <>
             {coins !== null && (
@@ -73,13 +84,13 @@ export default function Header() {
               onClick={logout}
               className="text-xs text-gray-500 hover:text-gray-300 transition-colors hidden sm:block"
             >
-              Logout
+              {t.nav.logout}
             </button>
           </>
         ) : (
           <Link to="/login"
             className="bg-lobster hover:bg-red-700 text-white px-3 md:px-4 py-2 rounded-lg text-sm font-medium transition-colors">
-            Sign In
+            {t.nav.signIn}
           </Link>
         )}
       </div>

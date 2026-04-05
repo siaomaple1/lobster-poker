@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore.js';
+import { useT } from '../utils/i18n.js';
 import { AI_MODELS } from '../utils/constants.js';
 import { getApiKeys, saveApiKey, deleteApiKey } from '../utils/api.js';
 
@@ -18,6 +19,7 @@ const MODEL_META = {
 
 export default function Settings() {
   const { user } = useAuthStore();
+  const t = useT();
   if (!user) return <Navigate to="/login" replace />;
 
   const [keys, setKeys]       = useState({});
@@ -76,33 +78,35 @@ export default function Settings() {
       {/* Header */}
       <div className="flex items-end justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-white">🔑 API Keys</h1>
-          <p className="text-gray-400 text-sm mt-1">
-            Add your AI provider keys so each model can play poker.
-          </p>
+          <h1 className="text-2xl font-bold text-white">{t.settings.title}</h1>
+          <p className="text-gray-400 text-sm mt-1">{t.settings.subtitle}</p>
         </div>
         <div className="text-sm text-gray-500 shrink-0">
-          <span className="text-white font-bold">{keyCount}</span> / {AI_MODELS.length} set
+          {t.settings.keyCount(keyCount, AI_MODELS.length)}
         </div>
       </div>
 
       {/* Security notice */}
       <div className="bg-[#1a2a1a] border border-green-800/50 rounded-2xl p-4 space-y-2.5">
         <div className="flex items-center gap-2 text-green-400 font-semibold text-sm">
-          🔒 About API Key Security
+          {t.settings.securityTitle}
         </div>
         <ul className="space-y-2 text-sm text-gray-300">
           <li className="flex items-start gap-2">
             <span className="text-green-500 mt-0.5 shrink-0">✓</span>
-            <span>Your key is only used during gameplay to call the AI model's API. Nothing else.</span>
+            <span>{t.settings.sec1}</span>
           </li>
           <li className="flex items-start gap-2">
             <span className="text-green-500 mt-0.5 shrink-0">✓</span>
-            <span>Keys are encrypted and stored securely. Only a masked version (e.g. <span className="font-mono text-gray-400 text-xs">sk-a••••xyz</span>) is shown in the UI. The original key is never returned through any interface.</span>
+            <span>
+              {t.settings.sec2}{' '}
+              <span className="font-mono text-gray-400 text-xs">sk-a••••xyz</span>
+              {t.settings.sec2b}
+            </span>
           </li>
           <li className="flex items-start gap-2">
             <span className="text-yellow-400 mt-0.5 shrink-0">💡</span>
-            <span>We recommend creating a new dedicated key for this site with a spending limit (e.g. $5/month), so even in the worst case your main account stays safe.</span>
+            <span>{t.settings.sec3}</span>
           </li>
         </ul>
       </div>
@@ -122,20 +126,18 @@ export default function Settings() {
                 ${isEditing ? 'border-gold/50' : hasKey ? 'border-green-800/40' : 'border-[#333]'}`}
             >
               <div className="flex items-center gap-3">
-                {/* Emoji + status dot */}
                 <div className="relative shrink-0">
                   <span className="text-2xl w-9 text-center block">{m.emoji}</span>
                   <span className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-[#1e1e1e]
                     ${hasKey ? 'bg-green-500' : 'bg-[#444]'}`} />
                 </div>
 
-                {/* Name + key field */}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <span className="font-semibold text-white text-sm">{m.label}</span>
                     {hasKey && !isEditing && (
                       <span className="text-xs bg-green-900/30 text-green-400 px-2 py-0.5 rounded-full border border-green-800/40">
-                        ✓ Active
+                        {t.settings.active}
                       </span>
                     )}
                   </div>
@@ -148,7 +150,7 @@ export default function Settings() {
                         value={inputVal}
                         onChange={e => setInputVal(e.target.value)}
                         onKeyDown={e => onKeyDown(e, m.id)}
-                        placeholder={meta.hint || 'Paste your API key...'}
+                        placeholder={meta.hint || t.settings.pastePlaceholder}
                         className="w-full bg-[#2a2a2a] border border-[#555] rounded-lg px-3 py-2 text-white text-sm
                           focus:outline-none focus:border-gold font-mono pr-10 placeholder:text-gray-600"
                       />
@@ -171,7 +173,6 @@ export default function Settings() {
                   )}
                 </div>
 
-                {/* Buttons */}
                 <div className="flex gap-1.5 shrink-0">
                   {isEditing ? (
                     <>
@@ -181,13 +182,13 @@ export default function Settings() {
                         className="bg-green-700 hover:bg-green-600 disabled:opacity-40 text-white
                           text-xs px-3 py-1.5 rounded-lg transition-colors font-medium"
                       >
-                        {saving ? '...' : 'Save'}
+                        {saving ? '...' : t.settings.save}
                       </button>
                       <button
                         onClick={cancelEdit}
                         className="bg-[#333] hover:bg-[#444] text-gray-300 text-xs px-3 py-1.5 rounded-lg transition-colors"
                       >
-                        Cancel
+                        {t.settings.cancel}
                       </button>
                     </>
                   ) : (
@@ -197,7 +198,7 @@ export default function Settings() {
                         className="bg-[#2a2a2a] hover:bg-[#333] text-gray-300 text-xs px-3 py-1.5
                           rounded-lg transition-colors border border-[#3a3a3a]"
                       >
-                        {hasKey ? 'Edit' : 'Add'}
+                        {hasKey ? t.settings.edit : t.settings.add}
                       </button>
                       {hasKey && (
                         <button
@@ -213,12 +214,11 @@ export default function Settings() {
                 </div>
               </div>
 
-              {/* Inline feedback */}
               {status[m.id] === 'saved' && !isEditing && (
-                <p className="text-green-400 text-xs mt-2 pl-12">Saved successfully</p>
+                <p className="text-green-400 text-xs mt-2 pl-12">{t.settings.savedOk}</p>
               )}
               {status[m.id] && status[m.id] !== 'saved' && (
-                <p className="text-red-400 text-xs mt-2 pl-12">Error: {status[m.id]}</p>
+                <p className="text-red-400 text-xs mt-2 pl-12">{t.settings.errorPrefix} {status[m.id]}</p>
               )}
             </div>
           );
@@ -226,8 +226,7 @@ export default function Settings() {
       </div>
 
       <p className="text-xs text-gray-600 text-center pb-4">
-        Keys are only used to make API calls during poker games and are never shared.
-        Press Enter to save, Escape to cancel.
+        {t.settings.footer}
       </p>
     </div>
   );

@@ -1,12 +1,14 @@
 import { useEffect, useState } from 'react';
 import { Link, Navigate } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore.js';
+import { useT } from '../utils/i18n.js';
 import { getCoins, getMyBets, getLobster, saveLobster, getApiKeys, getAgentToken, refreshAgentToken } from '../utils/api.js';
 import { formatCoins, formatTimer } from '../utils/format.js';
 import { AI_MODELS, MODEL_MAP } from '../utils/constants.js';
 
 export default function Profile() {
   const { user } = useAuthStore();
+  const t = useT();
   if (!user) return <Navigate to="/login" replace />;
 
   return (
@@ -22,25 +24,25 @@ export default function Profile() {
         </div>
       </div>
 
-      <CoinsCard />
-      <MyLobsterCard user={user} />
+      <CoinsCard t={t} />
+      <MyLobsterCard user={user} t={t} />
       <Link to="/settings"
         className="block bg-[#1e1e1e] border border-[#333] hover:border-gold/40 rounded-2xl p-5 transition-colors group">
         <div className="flex items-center justify-between">
           <div>
-            <h3 className="font-semibold text-white">🔑 API Keys</h3>
-            <p className="text-xs text-gray-500 mt-0.5">Manage your AI provider keys</p>
+            <h3 className="font-semibold text-white">{t.profile.apiKeysTitle}</h3>
+            <p className="text-xs text-gray-500 mt-0.5">{t.profile.apiKeysDesc}</p>
           </div>
           <span className="text-gray-600 group-hover:text-gold transition-colors text-lg">→</span>
         </div>
       </Link>
-      <AgentTokenCard />
-      <BetHistory />
+      <AgentTokenCard t={t} />
+      <BetHistory t={t} />
     </div>
   );
 }
 
-function CoinsCard() {
+function CoinsCard({ t }) {
   const [coins, setCoins] = useState(null);
   const [secs, setSecs]   = useState(0);
 
@@ -52,28 +54,27 @@ function CoinsCard() {
 
   return (
     <div className="bg-[#1e1e1e] border border-[#333] rounded-2xl p-6">
-      <h3 className="font-semibold text-gray-300 mb-4">💰 Coin Balance</h3>
+      <h3 className="font-semibold text-gray-300 mb-4">{t.profile.coinBalance}</h3>
       <div className="flex items-end justify-between">
         <div>
           <div className="text-4xl font-display font-bold text-gold">
             {coins !== null ? formatCoins(coins) : '...'}
           </div>
-          <div className="text-gray-500 text-sm mt-1">coins</div>
+          <div className="text-gray-500 text-sm mt-1">{t.profile.coins}</div>
         </div>
         <div className="text-right">
-          <div className="text-xs text-gray-500 mb-1">Resets in</div>
+          <div className="text-xs text-gray-500 mb-1">{t.profile.resetsIn}</div>
           <div className="font-mono text-lg text-gray-300">{formatTimer(secs)}</div>
         </div>
       </div>
       <div className="mt-3 text-xs text-gray-600">
-        1,000,000 coins are given free every hour. Use them to bet on AI poker matches!
+        {t.profile.coinDesc}
       </div>
     </div>
   );
 }
 
-
-function MyLobsterCard({ user }) {
+function MyLobsterCard({ user, t }) {
   const defaultName = `${user.display_name || user.username}'s Lobster`;
   const [name,   setName]   = useState(defaultName);
   const [prompt, setPrompt] = useState('');
@@ -112,13 +113,13 @@ function MyLobsterCard({ user }) {
   return (
     <div className="bg-[#1e1e1e] border border-[#333] rounded-2xl p-6 space-y-4">
       <div>
-        <h3 className="font-semibold text-white text-lg">🦞 My Lobster</h3>
-        <p className="text-xs text-gray-500 mt-0.5">Your custom AI seat — joins every game you start</p>
+        <h3 className="font-semibold text-white text-lg">{t.profile.myLobster}</h3>
+        <p className="text-xs text-gray-500 mt-0.5">{t.profile.lobsterDesc}</p>
       </div>
 
       <div className="space-y-3">
         <div>
-          <label className="text-xs text-gray-400 mb-1 block">Lobster Name</label>
+          <label className="text-xs text-gray-400 mb-1 block">{t.profile.lobsterName}</label>
           <input
             value={name}
             onChange={e => setName(e.target.value)}
@@ -129,11 +130,11 @@ function MyLobsterCard({ user }) {
         </div>
 
         <div>
-          <label className="text-xs text-gray-400 mb-1 block">Personality Prompt</label>
+          <label className="text-xs text-gray-400 mb-1 block">{t.profile.personalityPrompt}</label>
           <textarea
             value={prompt}
             onChange={e => setPrompt(e.target.value)}
-            placeholder="I trash talk everyone. I raise because I think they're bluffing. I fold when I smell fear..."
+            placeholder={t.profile.personalityPlaceholder}
             rows={3}
             maxLength={200}
             className={`${inputCls} resize-none`}
@@ -141,19 +142,22 @@ function MyLobsterCard({ user }) {
         </div>
 
         <div>
-          <label className="text-xs text-gray-400 mb-1 block">Model (must have API key set)</label>
+          <label className="text-xs text-gray-400 mb-1 block">{t.profile.modelLabel}</label>
           <select
             value={model}
             onChange={e => setModel(e.target.value)}
             className={`${inputCls} cursor-pointer`}
           >
-            <option value="">— Disable lobster —</option>
+            <option value="">{t.profile.disableLobster}</option>
             {availableModels.map(m => (
               <option key={m.id} value={m.id}>{m.emoji} {m.label}</option>
             ))}
           </select>
           {availableModels.length === 0 && (
-            <p className="text-xs text-yellow-600 mt-1">No API keys set yet. <Link to="/settings" className="underline">Add keys →</Link></p>
+            <p className="text-xs text-yellow-600 mt-1">
+              {t.profile.noKeys}{' '}
+              <Link to="/settings" className="underline">{t.profile.addKeys}</Link>
+            </p>
           )}
         </div>
       </div>
@@ -163,13 +167,13 @@ function MyLobsterCard({ user }) {
         disabled={saving}
         className="bg-lobster hover:bg-red-700 text-white px-5 py-2 rounded-xl font-semibold text-sm transition-colors disabled:opacity-50"
       >
-        {saving ? 'Saving...' : saved ? '✓ Saved!' : 'Save Lobster'}
+        {saving ? t.profile.saving : saved ? t.profile.saved : t.profile.saveLobster}
       </button>
     </div>
   );
 }
 
-function AgentTokenCard() {
+function AgentTokenCard({ t }) {
   const [token, setToken]     = useState(null);
   const [copied, setCopied]   = useState(false);
   const [loading, setLoading] = useState(false);
@@ -193,10 +197,8 @@ function AgentTokenCard() {
   return (
     <div className="bg-[#1e1e1e] border border-[#333] rounded-2xl p-6 space-y-3">
       <div>
-        <h3 className="font-semibold text-white text-lg">🦾 OpenClaw Agent Token</h3>
-        <p className="text-xs text-gray-500 mt-0.5">
-          Let your OpenClaw agent join the game directly — no API key needed.
-        </p>
+        <h3 className="font-semibold text-white text-lg">{t.profile.agentTitle}</h3>
+        <p className="text-xs text-gray-500 mt-0.5">{t.profile.agentDesc}</p>
       </div>
 
       {token ? (
@@ -209,31 +211,31 @@ function AgentTokenCard() {
               onClick={handleCopy}
               className="shrink-0 bg-[#2a2a2a] hover:bg-[#333] border border-[#444] text-gray-300 text-xs px-3 py-2 rounded-lg transition-colors"
             >
-              {copied ? '✓ Copied' : 'Copy'}
+              {copied ? t.profile.copied : t.profile.copy}
             </button>
           </div>
           <div className="bg-[#1a1a2a] border border-blue-900/40 rounded-xl p-3 text-xs text-gray-400 space-y-1">
-            <div className="text-blue-400 font-semibold mb-1">How to use (OpenClaw skill setup):</div>
-            <div>1. Install lobster-poker skill: <code className="text-gray-300">/skill install lobster-poker</code></div>
-            <div>2. Set token: <code className="text-gray-300">/lobster-poker setup {token.slice(0, 8)}...</code></div>
-            <div>3. Join the game: <code className="text-gray-300">/lobster-poker join</code></div>
+            <div className="text-blue-400 font-semibold mb-1">{t.profile.agentHowTo}</div>
+            <div>{t.profile.agentStep1} <code className="text-gray-300">/skill install lobster-poker</code></div>
+            <div>{t.profile.agentStep2} <code className="text-gray-300">/lobster-poker setup {token.slice(0, 8)}...</code></div>
+            <div>{t.profile.agentStep3} <code className="text-gray-300">/lobster-poker join</code></div>
           </div>
           <button
             onClick={handleRefresh}
             disabled={loading}
             className="text-xs text-gray-500 hover:text-red-400 underline transition-colors disabled:opacity-50"
           >
-            {loading ? 'Regenerating...' : 'Regenerate Token (current token will be invalidated)'}
+            {loading ? t.profile.regenerating : t.profile.regenerate}
           </button>
         </>
       ) : (
-        <div className="text-gray-600 text-sm">Loading...</div>
+        <div className="text-gray-600 text-sm">{t.profile.loading}</div>
       )}
     </div>
   );
 }
 
-function BetHistory() {
+function BetHistory({ t }) {
   const [bets, setBets] = useState([]);
 
   useEffect(() => {
@@ -244,7 +246,7 @@ function BetHistory() {
 
   return (
     <div className="bg-[#1e1e1e] border border-[#333] rounded-2xl p-6">
-      <h3 className="font-semibold text-gray-300 mb-4">📋 Recent Bets</h3>
+      <h3 className="font-semibold text-gray-300 mb-4">{t.profile.recentBets}</h3>
       <div className="space-y-2">
         {bets.slice(0, 20).map(b => (
           <div key={b.id} className="flex items-center justify-between text-sm p-2 rounded-lg bg-[#2a2a2a]">
@@ -259,7 +261,7 @@ function BetHistory() {
                 {b.payout > 0 ? `+${formatCoins(b.payout)}` : '-' + formatCoins(b.amount)}
               </span>
             ) : (
-              <span className="text-yellow-500 text-xs">Pending</span>
+              <span className="text-yellow-500 text-xs">{t.profile.pending}</span>
             )}
           </div>
         ))}

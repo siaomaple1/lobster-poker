@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useGameStore } from '../store/gameStore.js';
 import { useAuthStore } from '../store/authStore.js';
+import { useT } from '../utils/i18n.js';
 import { stopGame, getRooms, createRoom } from '../utils/api.js';
 import { getSocket } from '../hooks/useSocket.js';
 import PokerTable from '../components/table/PokerTable.jsx';
@@ -10,6 +11,7 @@ import ActionLog from '../components/log/ActionLog.jsx';
 export default function Arena() {
   const { running, gameId, handNumber, seats, currentRoomId, setCurrentRoomId } = useGameStore();
   const { user } = useAuthStore();
+  const t = useT();
   const [rooms, setRooms] = useState([]);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newRoomName, setNewRoomName] = useState('');
@@ -27,7 +29,6 @@ export default function Arena() {
 
   const handleSwitchRoom = (roomId) => {
     setCurrentRoomId(roomId);
-    // useSocket watches currentRoomId and emits room:join automatically
   };
 
   const handleStop = async () => {
@@ -45,7 +46,7 @@ export default function Arena() {
       setNewRoomName('');
       handleSwitchRoom(room.id);
     } catch (e) {
-      alert(e.response?.data?.error || 'Failed to create room');
+      alert(e.response?.data?.error || t.arena.failedCreate);
     }
     setCreating(false);
   };
@@ -64,7 +65,7 @@ export default function Arena() {
         >
           {rooms.map(room => (
             <option key={room.id} value={room.id}>
-              {room.name} {room.running ? '🔴 LIVE' : '⬜ WAITING'} · 👁 {room.watcherCount}
+              {room.name} {room.running ? `🔴 ${t.arena.live}` : `⬜ ${t.arena.wait}`} · 👁 {room.watcherCount}
             </option>
           ))}
         </select>
@@ -74,14 +75,14 @@ export default function Arena() {
         {/* ── Room list panel — desktop only ─────────────────────────────── */}
         <div className="hidden md:block w-52 flex-shrink-0 space-y-2">
           <div className="flex items-center justify-between mb-1">
-            <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Rooms</span>
+            <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">{t.arena.rooms}</span>
             {user && (
               <button
                 onClick={() => setShowCreateModal(true)}
                 className="text-xs text-lobster hover:text-red-400 font-semibold"
-                title="Create Room"
+                title={t.arena.createRoom}
               >
-                + New
+                {t.arena.newRoom}
               </button>
             )}
           </div>
@@ -101,11 +102,11 @@ export default function Arena() {
                 <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full flex-shrink-0 ${
                   room.running ? 'bg-green-900 text-green-400' : 'bg-[#333] text-gray-500'
                 }`}>
-                  {room.running ? 'LIVE' : 'WAIT'}
+                  {room.running ? t.arena.live : t.arena.wait}
                 </span>
               </div>
               <div className="flex items-center gap-2 mt-1 text-[11px] text-gray-500">
-                {room.running && <span>Hand #{room.handNumber}</span>}
+                {room.running && <span>{t.arena.hand(room.handNumber)}</span>}
                 <span>👁 {room.watcherCount}</span>
               </div>
             </button>
@@ -121,11 +122,11 @@ export default function Arena() {
                 {currentRoom?.name || 'Arena'}
                 {running && (
                   <span className="ml-2 text-sm font-normal text-gray-400">
-                    — Hand #{handNumber} · {seats.filter(s => s.chips > 0).length} AIs
+                    {t.arena.aiCount(seats.filter(s => s.chips > 0).length, handNumber)}
                   </span>
                 )}
               </h2>
-              {gameId && <div className="text-xs text-gray-500">Game #{gameId}</div>}
+              {gameId && <div className="text-xs text-gray-500">{t.arena.gameId(gameId)}</div>}
             </div>
             <div className="flex gap-2">
               {user && running && (
@@ -133,20 +134,20 @@ export default function Arena() {
                   onClick={handleStop}
                   className="bg-[#333] hover:bg-[#444] text-gray-300 px-5 py-2 rounded-xl font-semibold transition-colors"
                 >
-                  ⏹ Stop
+                  {t.arena.stop}
                 </button>
               )}
               {!user && (
                 <a href="/login"
                   className="bg-[#2a2a2a] border border-[#444] text-gray-300 hover:text-white px-5 py-2 rounded-xl font-semibold transition-colors text-sm">
-                  Sign in to play
+                  {t.arena.signInToPlay}
                 </a>
               )}
             </div>
           </div>
 
           {/* Lobby */}
-          {!running && <LobbyPanel user={user} />}
+          {!running && <LobbyPanel user={user} t={t} />}
 
           {/* Main layout */}
           <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-3 md:gap-4">
@@ -156,7 +157,7 @@ export default function Arena() {
             </div>
             <div className="space-y-4">
               <BettingPanel />
-              <ChipLeaderboard seats={seats} />
+              <ChipLeaderboard seats={seats} label={t.arena.chipCounts} />
             </div>
           </div>
         </div>
@@ -169,13 +170,13 @@ export default function Arena() {
           onClick={e => { if (e.target === e.currentTarget) setShowCreateModal(false); }}
         >
           <div className="bg-[#1e1e1e] border border-[#444] rounded-2xl p-6 w-80 space-y-4">
-            <h3 className="font-bold text-white text-lg">Create Room</h3>
+            <h3 className="font-bold text-white text-lg">{t.arena.createRoom}</h3>
             <input
               autoFocus
               value={newRoomName}
               onChange={e => setNewRoomName(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter') handleCreateRoom(); if (e.key === 'Escape') setShowCreateModal(false); }}
-              placeholder="Room name..."
+              placeholder={t.arena.roomNamePlaceholder}
               maxLength={40}
               className="w-full bg-[#2a2a2a] border border-[#444] rounded-xl px-3 py-2 text-white placeholder-gray-600 focus:outline-none focus:border-lobster"
             />
@@ -184,14 +185,14 @@ export default function Arena() {
                 onClick={() => setShowCreateModal(false)}
                 className="px-4 py-2 rounded-xl bg-[#2a2a2a] text-gray-400 hover:text-white text-sm"
               >
-                Cancel
+                {t.arena.cancel}
               </button>
               <button
                 onClick={handleCreateRoom}
                 disabled={creating || !newRoomName.trim()}
                 className="px-4 py-2 rounded-xl bg-lobster hover:bg-red-700 text-white font-semibold text-sm disabled:opacity-50"
               >
-                {creating ? 'Creating...' : 'Create'}
+                {creating ? t.arena.creating : t.arena.create}
               </button>
             </div>
           </div>
@@ -201,7 +202,7 @@ export default function Arena() {
   );
 }
 
-function LobbyPanel({ user }) {
+function LobbyPanel({ user, t }) {
   const { lobbyPlayers, lobbyError } = useGameStore();
   const [countdown, setCountdown] = useState(8);
 
@@ -225,14 +226,14 @@ function LobbyPanel({ user }) {
     <div className="bg-[#1a1a1a] border border-[#333] rounded-2xl p-4 mb-3 md:mb-4 space-y-3">
       <div className="flex items-center justify-between">
         <span className="text-sm font-semibold text-gray-300">
-          🎮 Lobby — {readyCount}/{lobbyPlayers.length} ready
+          {t.arena.lobbyTitle(readyCount, lobbyPlayers.length)}
         </span>
-        <span className="text-xs text-gray-500">Need 2 ready to start</span>
+        <span className="text-xs text-gray-500">{t.arena.lobbyNeed}</span>
       </div>
 
       {lobbyPlayers.length === 0 ? (
         <div className="text-xs text-gray-600 text-center py-1">
-          {user ? 'Waiting for players to join...' : 'Sign in to join the lobby'}
+          {user ? t.arena.lobbyEmpty : t.arena.lobbySignIn}
         </div>
       ) : (
         <div className="flex flex-wrap gap-2">
@@ -255,17 +256,17 @@ function LobbyPanel({ user }) {
           onClick={() => getSocket().emit('room:ready')}
           className="w-full bg-green-700 hover:bg-green-600 text-white py-2 rounded-xl font-semibold text-sm transition-colors"
         >
-          ✓ Ready ({countdown}s)
+          {t.arena.readyBtn(countdown)}
         </button>
       )}
       {user && myEntry && isReady && (
         <div className="w-full bg-green-900/40 border border-green-700/50 text-green-400 py-2 rounded-xl font-semibold text-sm text-center">
-          ✓ Ready — waiting for others...
+          {t.arena.readyWaiting}
         </div>
       )}
       {!user && (
         <a href="/login" className="block text-center text-xs text-lobster hover:underline">
-          Sign in to join the lobby →
+          {t.arena.signInLobby}
         </a>
       )}
       {lobbyError && (
@@ -277,14 +278,14 @@ function LobbyPanel({ user }) {
   );
 }
 
-function ChipLeaderboard({ seats }) {
+function ChipLeaderboard({ seats, label }) {
   if (!seats || seats.length === 0) return null;
   const sorted = [...seats].sort((a, b) => b.chips - a.chips);
   const max = sorted[0]?.chips || 1;
 
   return (
     <div className="bg-[#1e1e1e] border border-[#333] rounded-2xl p-4">
-      <h3 className="font-semibold text-sm text-gray-300 mb-3">Chip Counts</h3>
+      <h3 className="font-semibold text-sm text-gray-300 mb-3">{label}</h3>
       <div className="space-y-2">
         {sorted.map((s, i) => {
           const pct = (s.chips / max) * 100;

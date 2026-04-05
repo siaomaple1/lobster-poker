@@ -1,16 +1,18 @@
 import { useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore.js';
+import { useT } from '../utils/i18n.js';
 
 const PROVIDERS = [
-  { id: 'google',  label: 'Google',  icon: '🔵', color: 'hover:bg-blue-600' },
-  { id: 'github',  label: 'GitHub',  icon: '⚫', color: 'hover:bg-gray-600' },
-  { id: 'discord', label: 'Discord', icon: '🟣', color: 'hover:bg-indigo-600' },
+  { id: 'google',  label: 'Google',      icon: '🔵', color: 'hover:bg-blue-600' },
+  { id: 'github',  label: 'GitHub',      icon: '⚫', color: 'hover:bg-gray-600' },
+  { id: 'discord', label: 'Discord',     icon: '🟣', color: 'hover:bg-indigo-600' },
   { id: 'twitter', label: 'X / Twitter', icon: '⬛', color: 'hover:bg-slate-600' },
 ];
 
 export default function Login() {
   const { user } = useAuthStore();
+  const t = useT();
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const loginError = params.get('error');
@@ -30,12 +32,12 @@ export default function Login() {
         <div className="text-center mb-10">
           <div className="text-8xl mb-4">🦞</div>
           <h1 className="font-display text-4xl text-gold font-bold mb-2">Lobster Poker</h1>
-          <p className="text-gray-400 text-lg">AI Battle Arena</p>
+          <p className="text-gray-400 text-lg">{t.login.subtitle}</p>
         </div>
 
         {/* Feature pills */}
         <div className="flex flex-wrap gap-2 justify-center mb-8">
-          {['9 AI Models', 'Live Betting', '1M Free Coins', 'Hourly Reset'].map(f => (
+          {[t.login.pill1, t.login.pill2, t.login.pill3, t.login.pill4].map(f => (
             <span key={f} className="bg-[#2a2a2a] border border-[#444] text-gray-300 text-sm px-3 py-1 rounded-full">
               {f}
             </span>
@@ -44,16 +46,14 @@ export default function Login() {
 
         {/* Description */}
         <div className="bg-[#1e1e1e] border border-[#333] rounded-2xl p-6 mb-6">
-          <p className="text-gray-300 text-center leading-relaxed">
-            Watch <strong className="text-white">Claude, GPT, DeepSeek, Gemini, Grok, Qwen, Mistral, Cohere & Groq</strong> battle it out at the poker table.
-            Place your bets and compete on the leaderboard.
-          </p>
+          <p className="text-gray-300 text-center leading-relaxed"
+            dangerouslySetInnerHTML={{ __html: t.login.description }} />
         </div>
 
         {/* Error message */}
         {loginError && (
           <div className="bg-red-900/30 border border-red-700/50 text-red-400 text-sm rounded-xl px-4 py-3 mb-4 text-center">
-            登录失败。请确认 Google Console 已添加你的账号为测试用户，且重定向 URI 填写正确。
+            {t.login.loginError}
           </div>
         )}
 
@@ -67,13 +67,13 @@ export default function Login() {
                 text-white px-6 py-4 rounded-xl font-medium text-base transition-colors ${p.color}`}
             >
               <span className="text-2xl">{p.icon}</span>
-              <span>Continue with {p.label}</span>
+              <span>{t.login.continueWith(p.label)}</span>
             </button>
           ))}
         </div>
 
         <p className="text-center text-gray-600 text-xs mt-6">
-          No real money. Coins are fictional and reset hourly. Just for fun.
+          {t.login.footer}
         </p>
       </div>
     </div>

@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
 import { getLeaderboard } from '../utils/api.js';
+import { useT } from '../utils/i18n.js';
 import { MODEL_MAP } from '../utils/constants.js';
 
 export default function Leaderboard() {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
+  const t = useT();
 
   useEffect(() => {
     getLeaderboard()
@@ -24,19 +26,19 @@ export default function Leaderboard() {
   return (
     <div className="max-w-3xl mx-auto p-4 lg:p-8">
       <div className="text-center mb-8">
-        <h1 className="font-display text-3xl font-bold text-gold mb-2">🏆 AI Leaderboard</h1>
-        <p className="text-gray-400">Ranked by hand win rate across all games</p>
+        <h1 className="font-display text-3xl font-bold text-gold mb-2">{t.leaderboard.title}</h1>
+        <p className="text-gray-400">{t.leaderboard.subtitle}</p>
       </div>
 
       <div className="bg-[#1e1e1e] border border-[#333] rounded-2xl overflow-hidden">
         <table className="w-full">
           <thead>
             <tr className="border-b border-[#333] text-xs text-gray-500 uppercase tracking-wider">
-              <th className="text-left px-4 py-3">Rank</th>
-              <th className="text-left px-4 py-3">Model</th>
-              <th className="text-right px-4 py-3">Win Rate</th>
-              <th className="text-right px-4 py-3">Wins</th>
-              <th className="text-right px-4 py-3">Hands</th>
+              <th className="text-left px-4 py-3">{t.leaderboard.rank}</th>
+              <th className="text-left px-4 py-3">{t.leaderboard.model}</th>
+              <th className="text-right px-4 py-3">{t.leaderboard.winRate}</th>
+              <th className="text-right px-4 py-3">{t.leaderboard.wins}</th>
+              <th className="text-right px-4 py-3">{t.leaderboard.hands}</th>
             </tr>
           </thead>
           <tbody>
@@ -89,7 +91,7 @@ export default function Leaderboard() {
 
         {data.length === 0 && (
           <div className="text-center py-12 text-gray-500">
-            No games played yet. Start a game to see stats!
+            {t.leaderboard.empty}
           </div>
         )}
       </div>
