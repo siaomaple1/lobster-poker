@@ -232,6 +232,7 @@ function emitLobby(room) {
 function checkAutoStart(room) {
   if (room.engine.running) return;
   const readyEntries = [...room.lobby.values()].filter(e => e.ready);
+  console.log(`[Room ${room.id}] checkAutoStart: ${readyEntries.length} ready entries`);
   if (readyEntries.length < 2) return;
 
   const mergedKeys = {};
@@ -241,8 +242,19 @@ function checkAutoStart(room) {
     }
   }
   const activeModels = AI_MODELS.filter(m => mergedKeys[m]);
+  console.log(`[Room ${room.id}] checkAutoStart: ${activeModels.length} active models:`, activeModels);
   if (activeModels.length < 2) {
-    io.to(`table:${room.id}`).emit('room:lobby_error', { error: 'Not enough AI API keys between ready players (need 2+ models)' });
+    // Reset ready state so players can re-try after adding more API keys
+    for (const entry of readyEntries) {
+      entry.ready = false;
+      const timer = setTimeout(() => {
+        const e = room.lobby.get(entry.user.id);
+        if (e && !e.ready) { e.ready = true; emitLobby(room); checkAutoStart(room); }
+      }, 8000);
+      entry.timer = timer;
+    }
+    emitLobby(room);
+    io.to(`table:${room.id}`).emit('room:lobby_error', { error: 'Not enough AI models — players need at least 2 different AI API keys combined (e.g. Claude + GPT). Please add more keys in Settings.' });
     return;
   }
 
@@ -254,7 +266,11 @@ function checkAutoStart(room) {
   room.engine.apiKeys = mergedKeys;
   room.engine.start(createdBy, activeModels)
     .then(() => rebuildLobby(room))
-    .catch(err => console.error(`[Room ${room.id}] Engine error:`, err));
+    .catch(err => {
+      console.error(`[Room ${room.id}] Engine error:`, err);
+      io.to(`table:${room.id}`).emit('room:lobby_error', { error: 'Failed to start game. Please try again.' });
+      rebuildLobby(room);
+    });
 }
 
 function rebuildLobby(room) {
@@ -410,6 +426,7 @@ io.on('connection', socket => {
       const entry = r.lobby.get(u.id);
       clearTimeout(entry.timer);
       entry.ready = true;
+      entry.keys = keys; // refresh keys in case user added new API keys since joining
     } else {
       r.lobby.set(u.id, { user: u, ready: true, keys, timer: null, socketId: socket.id, joinedAt: Date.now() });
     }
