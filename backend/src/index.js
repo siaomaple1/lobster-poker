@@ -187,23 +187,6 @@ function buildUserKeys(userId) {
   return keys;
 }
 
-function addToLobby(room, socket, user) {
-  const keys = buildUserKeys(user.id);
-  // Only seat users who have at least one API key — others are spectators
-  if (Object.keys(keys).length === 0) return;
-  if (room.lobby.has(user.id)) clearTimeout(room.lobby.get(user.id).timer);
-  const joinedAt = Date.now();
-  const timer = setTimeout(() => {
-    const entry = room.lobby.get(user.id);
-    if (entry && !entry.ready) {
-      entry.ready = true;
-      emitLobby(room);
-      checkAutoStart(room);
-    }
-  }, 8000);
-  room.lobby.set(user.id, { user, ready: false, keys, timer, socketId: socket.id, joinedAt });
-}
-
 function removeFromLobby(room, socketId) {
   for (const [userId, entry] of room.lobby) {
     if (entry.socketId === socketId) {
@@ -236,16 +219,19 @@ function checkAutoStart(room) {
   if (readyEntries.length < 2) return;
 
   // Build seat pool from ready players' keys.
-  // Each player contributes their own seat slots. If multiple players share
-  // the same model, seats get unique IDs: deepseek, deepseek_2, deepseek_3...
-  const seatKeys = {};   // { seatId: apiKey }
-  const modelCount = {}; // { baseModel: occurrences }
+  // Each player contributes their own seat slots. Same model across players
+  // gets unique seat IDs: deepseek, deepseek_2, deepseek_3 ...
+  const seatKeys     = {}; // { seatId: apiKey }
+  const seatOwnerMap = {}; // { seatId: ownerName }  (#7)
+  const modelCount   = {}; // { baseModel: occurrences }
 
   for (const entry of readyEntries) {
+    const ownerName = entry.user.display_name || entry.user.username;
     for (const [model, key] of Object.entries(entry.keys)) {
       modelCount[model] = (modelCount[model] || 0) + 1;
       const seatId = modelCount[model] === 1 ? model : `${model}_${modelCount[model]}`;
-      seatKeys[seatId] = key;
+      seatKeys[seatId]     = key;
+      seatOwnerMap[seatId] = ownerName;
     }
   }
 
@@ -259,14 +245,17 @@ function checkAutoStart(room) {
     return;
   }
 
+  // Save player IDs for auto-requeue after game ends (#4)
+  const readyUserIds = readyEntries.map(e => e.user.id);
+
   const createdBy = readyEntries[0].user.id;
   for (const entry of room.lobby.values()) clearTimeout(entry.timer);
   room.lobby.clear();
   io.to(`table:${room.id}`).emit('room:lobby', { players: [] });
 
   room.engine.apiKeys = seatKeys;
-  room.engine.start(createdBy, seatIds)
-    .then(() => emitLobby(room))
+  room.engine.start(createdBy, seatIds, seatOwnerMap)
+    .then(() => rebuildLobby(room, readyUserIds))
     .catch(err => {
       console.error(`[Room ${room.id}] Engine error:`, err);
       io.to(`table:${room.id}`).emit('room:lobby_error', { error: 'Failed to start game. Please try again.' });
@@ -274,8 +263,36 @@ function checkAutoStart(room) {
     });
 }
 
-function rebuildLobby(room) {
-  // Lobby was cleared when game started; just notify clients it's empty.
+// After game ends: re-seat players who were in the previous game + re-seat agent (#1 #4)
+function rebuildLobby(room, requeueUserIds = []) {
+  if (requeueUserIds.length > 0) {
+    const socketsInRoom = io.sockets.adapter.rooms.get(`table:${room.id}`);
+    if (socketsInRoom) {
+      for (const socketId of socketsInRoom) {
+        const s = io.sockets.sockets.get(socketId);
+        if (!s?.request.user) continue;
+        if (!requeueUserIds.includes(s.request.user.id)) continue;
+        const u = s.request.user;
+        const keys = buildUserKeys(u.id);
+        if (Object.keys(keys).length === 0) continue;
+        room.lobby.set(u.id, {
+          user: u, ready: true, keys, timer: null,
+          socketId: s.id, joinedAt: Date.now(),
+        });
+      }
+    }
+  }
+  // Re-seat OpenClaw agent if still connected (#1)
+  if (room.engine.agentSocket?.connected) {
+    const u = room.engine.agentSocket.data?.agentUser;
+    if (u) {
+      const keys = buildUserKeys(u.id);
+      room.lobby.set(u.id, {
+        user: u, ready: true, keys, timer: null,
+        socketId: room.engine.agentSocket.id, joinedAt: Date.now(),
+      });
+    }
+  }
   emitLobby(room);
 }
 
@@ -376,20 +393,6 @@ io.on('connection', socket => {
     socket.emit('game:status', target.engine.getStatus());
     emitLobby(target);
     console.log(`[Socket] ${socket.id} room ${prev} → ${roomId}`);
-  });
-
-  // Client signals ready
-  socket.on('room:ready', () => {
-    const r = rooms.get(socket.data.roomId);
-    if (!r || r.engine.running) return;
-    const u = socket.request.user;
-    if (!u) return;
-    const entry = r.lobby.get(u.id);
-    if (!entry || entry.ready) return;
-    clearTimeout(entry.timer);
-    entry.ready = true;
-    emitLobby(r);
-    checkAutoStart(r);
   });
 
   // ── Chat ──────────────────────────────────────────────────────────────────

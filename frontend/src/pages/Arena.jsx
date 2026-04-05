@@ -204,21 +204,9 @@ export default function Arena() {
 
 function LobbyPanel({ user, t }) {
   const { lobbyPlayers, lobbyError } = useGameStore();
-  const [countdown, setCountdown] = useState(8);
 
   const myEntry = user ? lobbyPlayers.find(p => p.id === user.id) : null;
   const isReady = myEntry?.ready ?? false;
-
-  useEffect(() => {
-    if (!myEntry || isReady) return;
-    const tick = () => {
-      const left = Math.max(0, Math.ceil((myEntry.joinedAt + 8000 - Date.now()) / 1000));
-      setCountdown(left);
-    };
-    tick();
-    const id = setInterval(tick, 250);
-    return () => clearInterval(id);
-  }, [myEntry?.joinedAt, isReady]);
 
   const readyCount = lobbyPlayers.filter(p => p.ready).length;
 
@@ -251,14 +239,6 @@ function LobbyPanel({ user, t }) {
         </div>
       )}
 
-      {user && myEntry && !isReady && (
-        <button
-          onClick={() => getSocket().emit('room:ready')}
-          className="w-full bg-green-700 hover:bg-green-600 text-white py-2 rounded-xl font-semibold text-sm transition-colors"
-        >
-          {t.arena.readyBtn(countdown)}
-        </button>
-      )}
       {user && myEntry && isReady && (
         <div className="w-full bg-green-900/40 border border-green-700/50 text-green-400 py-2 rounded-xl font-semibold text-sm text-center">
           {t.arena.readyWaiting}

@@ -11,6 +11,9 @@ const HAND_END_DELAY_MS = 4000;   // pause after showdown before next hand
 const AI_MODELS = ['claude', 'gpt', 'deepseek', 'gemini', 'grok', 'qwen', 'mistral', 'cohere', 'groq'];
 const STARTING_CHIPS = 10000;
 
+// Strip _2/_3 suffix → base model name for stats ("deepseek_2" → "deepseek")
+const baseModel = id => id.replace(/_\d+$/, '');
+
 function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
@@ -36,7 +39,7 @@ class GameEngine {
   }
 
   // ── Start a new game ────────────────────────────────────────────────────
-  async start(createdBy = null, models = AI_MODELS) {
+  async start(createdBy = null, models = AI_MODELS, customSeatOwners = null) {
     if (this.running) return;
     this.running = true;
 
@@ -45,16 +48,19 @@ class GameEngine {
       const { id } = stmts.createGame.get(createdBy, this.roomId);
       this.gameId = id;
 
-      // Track who started the game
-      this.seatOwners = {};
+      // Track which human player owns each AI seat (#7)
       const user = createdBy ? stmts.getUserById.get(createdBy) : null;
-      const name = user?.display_name || user?.username || 'Unknown';
-      for (const m of models) { this.seatOwners[m] = name; }
+      if (customSeatOwners) {
+        this.seatOwners = { ...customSeatOwners };
+      } else {
+        const name = user?.display_name || user?.username || 'Unknown';
+        this.seatOwners = Object.fromEntries(models.map(m => [m, name]));
+      }
 
-      // Init seats — only the models that have keys
+      // Init seats — use base model name for stats to avoid deepseek_2 pollution (#2)
       this.seats = models.map(model => {
         stmts.insertSeat.run(id, model);
-        stmts.ensureAiStats.run(model);
+        stmts.ensureAiStats.run(baseModel(model));
         return { id: model, chips: STARTING_CHIPS };
       });
 
@@ -190,9 +196,9 @@ class GameEngine {
     // DB updates
     for (const hp of hand.players) {
       stmts.updateSeat.run(hp.chips, this.gameId, hp.id);
-      stmts.recordHandResult.run(hp.id === winnerId ? 1 : 0, hp.id);
+      stmts.recordHandResult.run(hp.id === winnerId ? 1 : 0, baseModel(hp.id));
     }
-    stmts.recordWin.run(this.gameId, winnerId);
+    stmts.recordWin.run(this.gameId, baseModel(winnerId));
 
     // Save hand to DB
     stmts.insertHand.get({
