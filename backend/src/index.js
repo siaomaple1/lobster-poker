@@ -19,6 +19,7 @@ const apiRouter      = require('./routes/api');
 const { GameEngine } = require('./game/game-engine');
 
 const PORT       = process.env.PORT || 3001;
+const BASE_URL   = process.env.BASE_URL   || `http://localhost:${PORT}`;
 const CLIENT_URL = process.env.CLIENT_URL || 'http://localhost:5173';
 
 // ── Passport strategies ────────────────────────────────────────────────────
@@ -29,7 +30,7 @@ const TwitterStrategy = require('passport-twitter').Strategy;
 
 function makeStrategy(Strategy, provider, options, profileMapper) {
   return new Strategy(
-    { ...options, callbackURL: `http://localhost:${PORT}/auth/${provider}/callback`, passReqToCallback: false },
+    { ...options, callbackURL: `${BASE_URL}/auth/${provider}/callback`, passReqToCallback: false },
     (_at, _rt, profile, done) => {
       try {
         const mapped = profileMapper(profile);
@@ -112,6 +113,7 @@ const io     = new Server(server, {
   cors: { origin: CLIENT_URL, credentials: true },
 });
 
+app.set('trust proxy', 1); // Railway / reverse proxy HTTPS termination
 app.use(cors({ origin: CLIENT_URL, credentials: true }));
 app.use(express.json());
 
