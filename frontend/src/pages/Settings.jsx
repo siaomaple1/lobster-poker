@@ -48,8 +48,10 @@ export default function Settings() {
       setStatus(s => ({ ...s, [id]: 'saved' }));
       setEditing(null);
       setInputVal('');
-    } catch {
-      setStatus(s => ({ ...s, [id]: 'error' }));
+    } catch (e) {
+      const msg = e.response?.data?.error || e.message || 'Unknown error';
+      console.error('[saveApiKey]', e.response?.status, msg);
+      setStatus(s => ({ ...s, [id]: msg }));
     }
     setSaving(false);
   };
@@ -195,8 +197,8 @@ export default function Settings() {
               {status[m.id] === 'saved' && !isEditing && (
                 <p className="text-green-400 text-xs mt-2 pl-12">Saved successfully</p>
               )}
-              {status[m.id] === 'error' && (
-                <p className="text-red-400 text-xs mt-2 pl-12">Failed to save — please try again</p>
+              {status[m.id] && status[m.id] !== 'saved' && (
+                <p className="text-red-400 text-xs mt-2 pl-12">Error: {status[m.id]}</p>
               )}
             </div>
           );
