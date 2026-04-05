@@ -54,6 +54,26 @@ router.delete('/api-keys/:model', requireAuth, (req, res) => {
   res.json({ ok: true });
 });
 
+// ── Lobster ────────────────────────────────────────────────────────────────
+router.get('/lobster', requireAuth, (req, res) => {
+  const row = stmts.getLobster.get(req.user.id);
+  res.json(row || { lobster_name: null, lobster_prompt: null, lobster_model: null });
+});
+
+router.post('/lobster', requireAuth, (req, res) => {
+  const { lobster_name, lobster_prompt, lobster_model } = req.body;
+  if (lobster_model && !AI_MODELS.includes(lobster_model)) {
+    return res.status(400).json({ error: 'Unknown model' });
+  }
+  stmts.saveLobster.run({
+    lobster_name:   lobster_name?.trim()   || null,
+    lobster_prompt: lobster_prompt?.trim() || null,
+    lobster_model:  lobster_model          || null,
+    id: req.user.id,
+  });
+  res.json({ ok: true });
+});
+
 // ── Bets ───────────────────────────────────────────────────────────────────
 // gameEngine is injected at app startup (see index.js)
 router.post('/bets', requireAuth, (req, res) => {

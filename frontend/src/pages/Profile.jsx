@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import { Link, Navigate } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore.js';
-import { getCoins, getMyBets } from '../utils/api.js';
+import { getCoins, getMyBets, getLobster, saveLobster, getApiKeys } from '../utils/api.js';
 import { formatCoins, formatTimer } from '../utils/format.js';
+import { AI_MODELS } from '../utils/constants.js';
 
 export default function Profile() {
   const { user } = useAuthStore();
@@ -22,6 +23,7 @@ export default function Profile() {
       </div>
 
       <CoinsCard />
+      <MyLobsterCard user={user} />
       <Link to="/settings"
         className="block bg-[#1e1e1e] border border-[#333] hover:border-gold/40 rounded-2xl p-5 transition-colors group">
         <div className="flex items-center justify-between">
@@ -69,6 +71,102 @@ function CoinsCard() {
   );
 }
 
+
+function MyLobsterCard({ user }) {
+  const defaultName = `${user.display_name || user.username}'s Lobster`;
+  const [name,   setName]   = useState(defaultName);
+  const [prompt, setPrompt] = useState('');
+  const [model,  setModel]  = useState('');
+  const [availableModels, setAvailableModels] = useState([]);
+  const [saving,  setSaving]  = useState(false);
+  const [saved,   setSaved]   = useState(false);
+
+  useEffect(() => {
+    getLobster().then(data => {
+      if (data.lobster_name)   setName(data.lobster_name);
+      if (data.lobster_prompt) setPrompt(data.lobster_prompt);
+      if (data.lobster_model)  setModel(data.lobster_model);
+    }).catch(() => {});
+
+    getApiKeys().then(keys => {
+      const available = AI_MODELS.filter(m => keys[m.id] !== null);
+      setAvailableModels(available);
+    }).catch(() => {});
+  }, []);
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      await saveLobster({ lobster_name: name, lobster_prompt: prompt, lobster_model: model });
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } catch (e) {
+      alert(e.response?.data?.error || 'Failed to save');
+    }
+    setSaving(false);
+  };
+
+  const inputCls = 'w-full bg-[#2a2a2a] border border-[#444] rounded-xl px-3 py-2 text-white text-sm placeholder-gray-600 focus:outline-none focus:border-lobster';
+
+  return (
+    <div className="bg-[#1e1e1e] border border-[#333] rounded-2xl p-6 space-y-4">
+      <div>
+        <h3 className="font-semibold text-white text-lg">🦞 My Lobster</h3>
+        <p className="text-xs text-gray-500 mt-0.5">Your custom AI seat — joins every game you start</p>
+      </div>
+
+      <div className="space-y-3">
+        <div>
+          <label className="text-xs text-gray-400 mb-1 block">Lobster Name</label>
+          <input
+            value={name}
+            onChange={e => setName(e.target.value)}
+            placeholder={defaultName}
+            maxLength={40}
+            className={inputCls}
+          />
+        </div>
+
+        <div>
+          <label className="text-xs text-gray-400 mb-1 block">Personality Prompt</label>
+          <textarea
+            value={prompt}
+            onChange={e => setPrompt(e.target.value)}
+            placeholder="I trash talk everyone. I raise because I think they're bluffing. I fold when I smell fear..."
+            rows={3}
+            maxLength={500}
+            className={`${inputCls} resize-none`}
+          />
+        </div>
+
+        <div>
+          <label className="text-xs text-gray-400 mb-1 block">Model (must have API key set)</label>
+          <select
+            value={model}
+            onChange={e => setModel(e.target.value)}
+            className={`${inputCls} cursor-pointer`}
+          >
+            <option value="">— Disable lobster —</option>
+            {availableModels.map(m => (
+              <option key={m.id} value={m.id}>{m.emoji} {m.label}</option>
+            ))}
+          </select>
+          {availableModels.length === 0 && (
+            <p className="text-xs text-yellow-600 mt-1">No API keys set yet. <Link to="/settings" className="underline">Add keys →</Link></p>
+          )}
+        </div>
+      </div>
+
+      <button
+        onClick={handleSave}
+        disabled={saving}
+        className="bg-lobster hover:bg-red-700 text-white px-5 py-2 rounded-xl font-semibold text-sm transition-colors disabled:opacity-50"
+      >
+        {saving ? 'Saving...' : saved ? '✓ Saved!' : 'Save Lobster'}
+      </button>
+    </div>
+  );
+}
 
 function BetHistory() {
   const [bets, setBets] = useState([]);

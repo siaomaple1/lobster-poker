@@ -15,7 +15,9 @@ export async function saveApiKey(model, apiKey) {
 export async function deleteApiKey(model) {
   return (await api.delete(`/api-keys/${model}`)).data;
 }
-export async function getLeaderboard() { return (await api.get('/leaderboard')).data; }
+export async function getLeaderboard()   { return (await api.get('/leaderboard')).data; }
+export async function getLobster()       { return (await api.get('/lobster')).data; }
+export async function saveLobster(data)  { return (await api.post('/lobster', data)).data; }
 export async function getRooms()       { return (await api.get('/rooms')).data; }
 export async function createRoom(name) { return (await api.post('/rooms', { name })).data; }
 export async function startGame(roomId, testMode = false) { return (await api.post(`/rooms/${roomId}/start`, { testMode })).data; }

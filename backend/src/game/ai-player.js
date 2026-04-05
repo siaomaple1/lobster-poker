@@ -71,7 +71,7 @@ function testAction(modelId, gameState) {
 }
 
 // ── Prompt Builder ─────────────────────────────────────────────────────────
-function buildPrompt(modelId, gameState, handHistory) {
+function buildPrompt(modelId, gameState, handHistory, lobsterConfig = null) {
   const me = gameState.players.find(p => p.id === modelId);
   const others = gameState.players.filter(p => p.id !== modelId);
   const toCall = Math.max(0, gameState.maxBet - (me.bet || 0));
@@ -110,9 +110,16 @@ ${othersStr}
 Recent actions:
 ${recentActions || '  (none yet)'}
 
-Your decision (two lines):
+${lobsterConfig
+  ? `Your personality: ${lobsterConfig.prompt || 'Be unpredictable and trash talk your opponents!'}
+
+Your decision (three lines):
+Line 1 — THINK: <poker reasoning in 1-2 sentences>
+Line 2 — TRASH: <trash talk directed at opponents, 1 funny sentence>
+Line 3 — DECIDE: FOLD / CALL / CHECK / RAISE <amount>`
+  : `Your decision (two lines):
 Line 1 — THINK: <your reasoning in 1-2 sentences>
-Line 2 — DECIDE: FOLD / CALL / CHECK / RAISE <amount>`;
+Line 2 — DECIDE: FOLD / CALL / CHECK / RAISE <amount>`}`;
 }
 
 // ── Timeout Wrapper ────────────────────────────────────────────────────────
@@ -124,7 +131,7 @@ function withTimeout(promise, ms) {
 }
 
 // ── Response Parser ────────────────────────────────────────────────────────
-function parseAction(text, gameState, modelId) {
+function parseAction(text, gameState, modelId, isLobster = false) {
   const me = gameState.players.find(p => p.id === modelId);
   const toCall = Math.max(0, gameState.maxBet - (me.bet || 0));
 
@@ -135,6 +142,10 @@ function parseAction(text, gameState, modelId) {
   const thought = thinkLine
     ? thinkLine.replace(/^.*THINK:\s*/i, '').trim()
     : null;
+
+  // Extract trash talk (lobster only)
+  const trashLine = isLobster ? lines.find(l => l.toUpperCase().includes('TRASH:')) : null;
+  const trash = trashLine ? trashLine.replace(/^.*TRASH:\s*/i, '').trim() : null;
 
   // Extract decision from DECIDE line, fall back to first line
   const decideLine = lines.find(l => l.toUpperCase().includes('DECIDE:')) || lines[0] || '';
@@ -160,93 +171,93 @@ function parseAction(text, gameState, modelId) {
     action = toCall > 0 ? 'call' : 'check';
   }
 
-  return { action, raiseTotal, thought };
+  return { action, raiseTotal, thought, trash };
 }
 
 // ── AI Adapters ────────────────────────────────────────────────────────────
-async function callClaude(apiKey, prompt) {
+async function callClaude(apiKey, prompt, maxTokens = 80) {
   const client = new Anthropic({ apiKey });
   const msg = await client.messages.create({
     model: 'claude-opus-4-5',
-    max_tokens: 30,
+    max_tokens: maxTokens,
     messages: [{ role: 'user', content: prompt }],
   });
   return msg.content[0].text;
 }
 
-async function callGPT(apiKey, prompt) {
+async function callGPT(apiKey, prompt, maxTokens = 80) {
   const client = new OpenAI({ apiKey });
   const res = await client.chat.completions.create({
     model: 'gpt-4o',
-    max_tokens: 30,
+    max_tokens: maxTokens,
     messages: [{ role: 'user', content: prompt }],
   });
   return res.choices[0].message.content;
 }
 
-async function callDeepSeek(apiKey, prompt) {
+async function callDeepSeek(apiKey, prompt, maxTokens = 80) {
   const client = new OpenAI({ apiKey, baseURL: 'https://api.deepseek.com' });
   const res = await client.chat.completions.create({
     model: 'deepseek-chat',
-    max_tokens: 30,
+    max_tokens: maxTokens,
     messages: [{ role: 'user', content: prompt }],
   });
   return res.choices[0].message.content;
 }
 
-async function callGemini(apiKey, prompt) {
+async function callGemini(apiKey, prompt, maxTokens = 80) {
   const genAI = new GoogleGenerativeAI(apiKey);
   const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
-  const result = await model.generateContent(prompt);
+  const result = await model.generateContent({ contents: [{ role: 'user', parts: [{ text: prompt }] }], generationConfig: { maxOutputTokens: maxTokens } });
   return result.response.text();
 }
 
-async function callGrok(apiKey, prompt) {
+async function callGrok(apiKey, prompt, maxTokens = 80) {
   const client = new OpenAI({ apiKey, baseURL: 'https://api.x.ai/v1' });
   const res = await client.chat.completions.create({
     model: 'grok-3',
-    max_tokens: 30,
+    max_tokens: maxTokens,
     messages: [{ role: 'user', content: prompt }],
   });
   return res.choices[0].message.content;
 }
 
-async function callQwen(apiKey, prompt) {
+async function callQwen(apiKey, prompt, maxTokens = 80) {
   const client = new OpenAI({
     apiKey,
     baseURL: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
   });
   const res = await client.chat.completions.create({
     model: 'qwen-max',
-    max_tokens: 30,
+    max_tokens: maxTokens,
     messages: [{ role: 'user', content: prompt }],
   });
   return res.choices[0].message.content;
 }
 
-async function callMistral(apiKey, prompt) {
+async function callMistral(apiKey, prompt, maxTokens = 80) {
   const res = await axios.post(
     'https://api.mistral.ai/v1/chat/completions',
-    { model: 'mistral-large-latest', max_tokens: 30, messages: [{ role: 'user', content: prompt }] },
+    { model: 'mistral-large-latest', max_tokens: maxTokens, messages: [{ role: 'user', content: prompt }] },
     { headers: { Authorization: `Bearer ${apiKey}` } }
   );
   return res.data.choices[0].message.content;
 }
 
-async function callCohere(apiKey, prompt) {
+async function callCohere(apiKey, prompt, maxTokens = 80) {
   const res = await axios.post(
     'https://api.cohere.ai/v2/chat',
-    { model: 'command-r-plus', max_tokens: 30, messages: [{ role: 'user', content: prompt }] },
+    { model: 'command-r-plus', max_tokens: maxTokens, messages: [{ role: 'user', content: prompt }] },
     { headers: { Authorization: `Bearer ${apiKey}` } }
   );
   return res.data.message.content[0].text;
 }
 
-async function callGroq(apiKey, prompt) {
+async function callGroq(apiKey, prompt, maxTokens = 80) {
   const client = new OpenAI({ apiKey, baseURL: 'https://api.groq.com/openai/v1' });
   const res = await client.chat.completions.create({
     model: 'llama-3.3-70b-versatile',
-    max_tokens: 30,
+    max_tokens: maxTokens,
     messages: [{ role: 'user', content: prompt }],
   });
   return res.choices[0].message.content;
@@ -265,16 +276,17 @@ const ADAPTERS = {
 };
 
 // ── Main: Get AI Action ────────────────────────────────────────────────────
-// apiKeys: { claude: 'sk-...', gpt: 'sk-...', ... }
-async function getAIAction(modelId, apiKeys, gameState, handHistory) {
-  const apiKey = apiKeys[modelId] || process.env[`${modelId.toUpperCase()}_API_KEY`];
-  const adapter = ADAPTERS[modelId];
+// lobsterConfig: { model, prompt, apiKey } — passed only for lobster seat
+async function getAIAction(modelId, apiKeys, gameState, handHistory, lobsterConfig = null) {
+  const isLobster = !!lobsterConfig;
+  const apiKey  = isLobster ? lobsterConfig.apiKey : (apiKeys[modelId] || process.env[`${modelId.toUpperCase()}_API_KEY`]);
+  const adapter = ADAPTERS[isLobster ? lobsterConfig.model : modelId];
 
   // Test mode: skip real API call
   if (apiKey === TEST_KEY) {
-    const result = testAction(modelId, gameState);
+    const result = testAction(isLobster ? lobsterConfig.model : modelId, gameState);
     console.log(`[AI] ${modelId} [TEST] → ${result.action}${result.raiseTotal ? ` ${result.raiseTotal}` : ''}`);
-    return result;
+    return { ...result, trash: isLobster ? 'You all play like NPCs!' : undefined };
   }
 
   if (!apiKey || !adapter) {
@@ -282,12 +294,13 @@ async function getAIAction(modelId, apiKeys, gameState, handHistory) {
     return fallbackAction(gameState, modelId);
   }
 
-  const prompt = buildPrompt(modelId, gameState, handHistory);
+  const prompt    = buildPrompt(modelId, gameState, handHistory, lobsterConfig);
+  const maxTokens = isLobster ? 200 : 80;
 
   try {
-    const text = await withTimeout(adapter(apiKey, prompt), ACTION_TIMEOUT_MS);
-    const parsed = parseAction(text, gameState, modelId);
-    console.log(`[AI] ${modelId} → ${parsed.action}${parsed.raiseTotal ? ` ${parsed.raiseTotal}` : ''}`);
+    const text   = await withTimeout(adapter(apiKey, prompt, maxTokens), ACTION_TIMEOUT_MS);
+    const parsed = parseAction(text, gameState, modelId, isLobster);
+    console.log(`[AI] ${modelId}${isLobster ? ' [🦞]' : ''} → ${parsed.action}${parsed.raiseTotal ? ` ${parsed.raiseTotal}` : ''}`);
     return parsed;
   } catch (err) {
     console.error(`[AI] ${modelId} error: ${err.message}`);

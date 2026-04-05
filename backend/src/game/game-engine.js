@@ -20,6 +20,7 @@ class GameEngine {
     this.io      = io;           // Socket.io server instance
     this.roomId  = roomId;       // which room this engine belongs to
     this.apiKeys = {};           // { claude: 'sk-...', gpt: '...', ... }
+    this.lobsterConfig = null;   // { model, prompt, apiKey, name } if a user lobster is seated
     this.running = false;
     this.gameId = null;
     this.handNumber = 0;
@@ -54,6 +55,23 @@ class GameEngine {
         stmts.ensureAiStats.run(model);
         return { id: model, chips: STARTING_CHIPS };
       });
+
+      // Add lobster seat if user has one configured
+      const userRow = createdBy ? stmts.getUserById.get(createdBy) : null;
+      if (userRow?.lobster_model && this.apiKeys[userRow.lobster_model]) {
+        const lobsterName = userRow.lobster_name || `${userRow.display_name || userRow.username}'s Lobster`;
+        this.lobsterConfig = {
+          model:  userRow.lobster_model,
+          prompt: userRow.lobster_prompt || '',
+          apiKey: this.apiKeys[userRow.lobster_model],
+          name:   lobsterName,
+        };
+        this.seats.push({ id: 'lobster', chips: STARTING_CHIPS });
+        stmts.insertSeat.run(id, 'lobster');
+        stmts.ensureAiStats.run('lobster');
+        this.seatOwners['lobster'] = userRow.display_name || userRow.username;
+        console.log(`[Game ${id}] Lobster seat: "${lobsterName}" (${userRow.lobster_model})`);
+      }
 
       console.log(`[Game ${id}] Started`);
       this.emit('game:start', { gameId: id, seats: this.seats });
@@ -123,7 +141,8 @@ class GameEngine {
 
       // Get AI decision
       const gameStateForAI = hand.getStateForPlayer(actorId);
-      const { action, raiseTotal, thought } = await getAIAction(actorId, this.apiKeys, gameStateForAI, hand.log);
+      const lobsterCfg = (actorId === 'lobster') ? this.lobsterConfig : null;
+      const { action, raiseTotal, thought, trash } = await getAIAction(actorId, this.apiKeys, gameStateForAI, hand.log, lobsterCfg);
 
       await sleep(ACTION_DELAY_MS);
 
@@ -133,7 +152,8 @@ class GameEngine {
         actorId,
         action,
         raiseTotal:  raiseTotal || null,
-        thought:     thought || null,
+        thought:     thought    || null,
+        trash:       trash      || null,
         ownerName:   this.seatOwners?.[actorId] || null,
         state:       result.state || hand.getPublicState(),
       });

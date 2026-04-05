@@ -85,10 +85,10 @@ export const useGameStore = create((set, get) => ({
   },
 
   handleAction(data) {
-    const { actorId, action, raiseTotal, thought, ownerName, state } = data;
+    const { actorId, action, raiseTotal, thought, trash, ownerName, state } = data;
     set({ stage: state.stage, board: state.board, pot: state.pot,
           players: state.players, actorId: null });
-    get().pushLog({ type: 'action', actorId, action, amount: raiseTotal, thought, ownerName });
+    get().pushLog({ type: 'action', actorId, action, amount: raiseTotal, thought, trash, ownerName });
   },
 
   handleShowdown(data) {

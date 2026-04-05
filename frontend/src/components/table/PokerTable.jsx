@@ -3,7 +3,9 @@ import { AI_MODELS, MODEL_MAP } from '../../utils/constants.js';
 import PlayerSeat from './PlayerSeat.jsx';
 import CommunityCards from './CommunityCards.jsx';
 
-// Seat positions around an oval (9 seats)
+const LOBSTER_MODEL = { id: 'lobster', label: '🦞 Lobster', color: '#e53e3e', emoji: '🦞' };
+
+// Seat positions around an oval (9 + optional lobster at position 9)
 const SEAT_POSITIONS = [
   { top: '75%', left: '50%',  transform: 'translate(-50%,-50%)' }, // bottom center (0)
   { top: '85%', left: '25%',  transform: 'translate(-50%,-50%)' }, // bottom left (1)
@@ -14,6 +16,7 @@ const SEAT_POSITIONS = [
   { top: '15%', left: '75%',  transform: 'translate(-50%,-50%)' }, // top right (6)
   { top: '35%', left: '88%',  transform: 'translate(-100%,-50%)' }, // upper right (7)
   { top: '65%', left: '88%',  transform: 'translate(-100%,-50%)' }, // mid right (8)
+  { top: '85%', left: '75%',  transform: 'translate(-50%,-50%)' }, // bottom right (9 — lobster)
 ];
 
 export default function PokerTable() {
@@ -78,6 +81,22 @@ export default function PokerTable() {
               </div>
             );
           })}
+
+          {/* Lobster seat (10th, user-controlled) */}
+          {seatMap['lobster'] && (() => {
+            const pos = SEAT_POSITIONS[9];
+            return (
+              <div className="absolute" style={{ top: pos.top, left: pos.left, transform: pos.transform }}>
+                <PlayerSeat
+                  model={LOBSTER_MODEL}
+                  chips={seatMap['lobster'].chips}
+                  player={playerMap['lobster'] || null}
+                  isActor={actorId === 'lobster'}
+                  isBust={seatMap['lobster'].chips <= 0 && running}
+                />
+              </div>
+            );
+          })()}
         </div>
       </div>
     </div>

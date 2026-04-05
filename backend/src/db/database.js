@@ -12,8 +12,11 @@ const db = new Database(DB_PATH);
 db.pragma('journal_mode = WAL');
 db.pragma('foreign_keys = ON');
 
-// Migrate existing databases: add room_id if the column doesn't exist yet
+// Migrate existing databases
 try { db.exec(`ALTER TABLE games ADD COLUMN room_id INTEGER NOT NULL DEFAULT 1`); } catch (_) {}
+try { db.exec(`ALTER TABLE users ADD COLUMN lobster_name TEXT`);   } catch (_) {}
+try { db.exec(`ALTER TABLE users ADD COLUMN lobster_prompt TEXT`);  } catch (_) {}
+try { db.exec(`ALTER TABLE users ADD COLUMN lobster_model TEXT`);   } catch (_) {}
 
 // ── Schema ─────────────────────────────────────────────────────────────────
 db.exec(`
@@ -117,6 +120,10 @@ const stmts = {
   `),
   spendCoins: db.prepare('UPDATE users SET coins = coins - ? WHERE id = ? AND coins >= ?'),
   addCoins: db.prepare('UPDATE users SET coins = coins + ? WHERE id = ?'),
+
+  // Lobster
+  getLobster: db.prepare(`SELECT lobster_name, lobster_prompt, lobster_model FROM users WHERE id = ?`),
+  saveLobster: db.prepare(`UPDATE users SET lobster_name = @lobster_name, lobster_prompt = @lobster_prompt, lobster_model = @lobster_model WHERE id = @id`),
 
   // API Keys
   getApiKey: db.prepare('SELECT api_key FROM user_api_keys WHERE user_id = ? AND model = ?'),
