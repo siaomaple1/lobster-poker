@@ -12,6 +12,19 @@ export const AI_MODELS = [
 
 export const MODEL_MAP = Object.fromEntries(AI_MODELS.map(m => [m.id, m]));
 
+// Resolve suffixed seat IDs (e.g. "deepseek_2") to their base model info.
+// Falls back gracefully if base model isn't found.
+export function resolveModel(seatId) {
+  if (MODEL_MAP[seatId]) return MODEL_MAP[seatId];
+  const base = seatId.replace(/_\d+$/, '');
+  const baseModel = MODEL_MAP[base];
+  if (baseModel) {
+    const n = seatId.match(/_(\d+)$/)?.[1];
+    return { ...baseModel, id: seatId, label: `${baseModel.label} #${n}` };
+  }
+  return { id: seatId, label: seatId, color: '#888', emoji: '🤖' };
+}
+
 export const SUIT_COLORS = {
   '♠': '#f0ede8',
   '♣': '#f0ede8',

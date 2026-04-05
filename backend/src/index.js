@@ -235,26 +235,27 @@ function checkAutoStart(room) {
   console.log(`[Room ${room.id}] checkAutoStart: ${readyEntries.length} ready entries`);
   if (readyEntries.length < 2) return;
 
-  const mergedKeys = {};
+  // Build seat pool from ready players' keys.
+  // Each player contributes their own seat slots. If multiple players share
+  // the same model, seats get unique IDs: deepseek, deepseek_2, deepseek_3...
+  const seatKeys = {};   // { seatId: apiKey }
+  const modelCount = {}; // { baseModel: occurrences }
+
   for (const entry of readyEntries) {
     for (const [model, key] of Object.entries(entry.keys)) {
-      if (!mergedKeys[model]) mergedKeys[model] = key;
+      modelCount[model] = (modelCount[model] || 0) + 1;
+      const seatId = modelCount[model] === 1 ? model : `${model}_${modelCount[model]}`;
+      seatKeys[seatId] = key;
     }
   }
-  const activeModels = AI_MODELS.filter(m => mergedKeys[m]);
-  console.log(`[Room ${room.id}] checkAutoStart: ${activeModels.length} active models:`, activeModels);
-  if (activeModels.length < 2) {
-    // Reset ready state so players can re-try after adding more API keys
-    for (const entry of readyEntries) {
-      entry.ready = false;
-      const timer = setTimeout(() => {
-        const e = room.lobby.get(entry.user.id);
-        if (e && !e.ready) { e.ready = true; emitLobby(room); checkAutoStart(room); }
-      }, 8000);
-      entry.timer = timer;
-    }
-    emitLobby(room);
-    io.to(`table:${room.id}`).emit('room:lobby_error', { error: 'Not enough AI models — players need at least 2 different AI API keys combined (e.g. Claude + GPT). Please add more keys in Settings.' });
+
+  const seatIds = Object.keys(seatKeys);
+  console.log(`[Room ${room.id}] checkAutoStart: ${seatIds.length} seats:`, seatIds);
+
+  if (seatIds.length < 2) {
+    io.to(`table:${room.id}`).emit('room:lobby_error', {
+      error: 'Not enough API keys — add at least 2 AI model keys in Settings to start.',
+    });
     return;
   }
 
@@ -263,23 +264,18 @@ function checkAutoStart(room) {
   room.lobby.clear();
   io.to(`table:${room.id}`).emit('room:lobby', { players: [] });
 
-  room.engine.apiKeys = mergedKeys;
-  room.engine.start(createdBy, activeModels)
-    .then(() => rebuildLobby(room))
+  room.engine.apiKeys = seatKeys;
+  room.engine.start(createdBy, seatIds)
+    .then(() => emitLobby(room))
     .catch(err => {
       console.error(`[Room ${room.id}] Engine error:`, err);
       io.to(`table:${room.id}`).emit('room:lobby_error', { error: 'Failed to start game. Please try again.' });
-      rebuildLobby(room);
+      emitLobby(room);
     });
 }
 
 function rebuildLobby(room) {
-  const socketsInRoom = io.sockets.adapter.rooms.get(`table:${room.id}`);
-  if (!socketsInRoom) return;
-  for (const socketId of socketsInRoom) {
-    const s = io.sockets.sockets.get(socketId);
-    if (s?.request.user) addToLobby(room, s, s.request.user);
-  }
+  // Lobby was cleared when game started; just notify clients it's empty.
   emitLobby(room);
 }
 
@@ -378,12 +374,6 @@ io.on('connection', socket => {
     socket.join(`table:${roomId}`);
     socket.data.roomId = roomId;
     socket.emit('game:status', target.engine.getStatus());
-
-    // Add to new room lobby if authenticated and game not running
-    const user = socket.request.user;
-    if (user && !target.engine.running) {
-      addToLobby(target, socket, user);
-    }
     emitLobby(target);
     console.log(`[Socket] ${socket.id} room ${prev} → ${roomId}`);
   });

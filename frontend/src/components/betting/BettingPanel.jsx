@@ -3,14 +3,14 @@ import { useGameStore } from '../../store/gameStore.js';
 import { useAuthStore } from '../../store/authStore.js';
 import { useT } from '../../utils/i18n.js';
 import { useToastStore } from '../../store/toastStore.js';
-import { AI_MODELS } from '../../utils/constants.js';
+import { resolveModel } from '../../utils/constants.js';
 import { formatCoins } from '../../utils/format.js';
 import { placeBet, getCoins } from '../../utils/api.js';
 
 const QUICK_BETS = [1000, 5000, 10000, 50000, 100000];
 
 export default function BettingPanel() {
-  const { bettingOpen, bettingEndsAt, handNumber } = useGameStore();
+  const { bettingOpen, bettingEndsAt, handNumber, seats } = useGameStore();
   const { user } = useAuthStore();
   const t = useT();
   const { show: showToast } = useToastStore();
@@ -93,7 +93,7 @@ export default function BettingPanel() {
         <div className="text-center py-6">
           <div className="text-4xl mb-2">✅</div>
           <div className="text-green-400 font-semibold">
-            {t.betting.betPlaced(AI_MODELS.find(m => m.id === selected)?.label || selected)}
+            {t.betting.betPlaced(resolveModel(selected)?.label || selected)}
           </div>
           <div className="text-gray-400 text-sm mt-1">{t.betting.coinsWagered(formatCoins(amount))}</div>
         </div>
@@ -103,19 +103,22 @@ export default function BettingPanel() {
           <div>
             <div className="text-xs text-gray-400 uppercase tracking-wider mb-2">{t.betting.pickChampion}</div>
             <div className="grid grid-cols-3 gap-2">
-              {AI_MODELS.map(m => (
-                <button
-                  key={m.id}
-                  onClick={() => setSelected(m.id)}
-                  className={`flex flex-col items-center gap-1 p-2 rounded-xl border-2 transition-all text-xs
-                    ${selected === m.id
-                      ? 'border-gold bg-[#2a1a00] text-gold'
-                      : 'border-[#333] hover:border-[#555] text-gray-400 hover:text-white'}`}
-                >
-                  <span className="text-lg">{m.emoji}</span>
-                  <span className="font-medium">{m.label}</span>
-                </button>
-              ))}
+              {seats.filter(s => s.chips > 0).map(s => {
+                const m = resolveModel(s.id);
+                return (
+                  <button
+                    key={s.id}
+                    onClick={() => setSelected(s.id)}
+                    className={`flex flex-col items-center gap-1 p-2 rounded-xl border-2 transition-all text-xs
+                      ${selected === s.id
+                        ? 'border-gold bg-[#2a1a00] text-gold'
+                        : 'border-[#333] hover:border-[#555] text-gray-400 hover:text-white'}`}
+                  >
+                    <span className="text-lg">{m.emoji}</span>
+                    <span className="font-medium">{m.label}</span>
+                  </button>
+                );
+              })}
             </div>
           </div>
 
@@ -163,7 +166,7 @@ export default function BettingPanel() {
             {placing
               ? t.betting.placing
               : selected
-                ? t.betting.betOn(formatCoins(amount), AI_MODELS.find(m => m.id === selected)?.label)
+                ? t.betting.betOn(formatCoins(amount), resolveModel(selected)?.label)
                 : t.betting.selectFirst}
           </button>
 

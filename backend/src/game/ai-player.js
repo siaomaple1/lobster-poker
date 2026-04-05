@@ -42,10 +42,10 @@ function holeScore(hole) {
   return Math.min(s, 1);
 }
 
-function testAction(modelId, gameState) {
+function testAction(modelId, gameState, base = modelId) {
   const me     = gameState.players.find(p => p.id === modelId);
   const toCall = Math.max(0, gameState.maxBet - (me.bet || 0));
-  const aggr   = PERSONALITY[modelId] ?? 0.5;
+  const aggr   = PERSONALITY[base] ?? 0.5;
   const str    = holeScore(me.hole);
   const rand   = Math.random();
 
@@ -71,7 +71,7 @@ function testAction(modelId, gameState) {
 }
 
 // ── Prompt Builder ─────────────────────────────────────────────────────────
-function buildPrompt(modelId, gameState, handHistory, lobsterConfig = null) {
+function buildPrompt(modelId, base, gameState, handHistory, lobsterConfig = null) {
   const me = gameState.players.find(p => p.id === modelId);
   const others = gameState.players.filter(p => p.id !== modelId);
   const toCall = Math.max(0, gameState.maxBet - (me.bet || 0));
@@ -91,7 +91,7 @@ function buildPrompt(modelId, gameState, handHistory, lobsterConfig = null) {
     .map(e => `  ${e.playerId} ${e.action}${e.detail ? ` ${e.detail}` : ''}`)
     .join('\n');
 
-  return `You are ${modelId} playing Texas Hold'em poker. Respond with ONLY one line:
+  return `You are ${base} playing Texas Hold'em poker. Respond with ONLY one line:
 - FOLD
 - CALL  (costs you ${toCall} chips)
 - CHECK  (only if to-call = 0)
@@ -276,26 +276,32 @@ const ADAPTERS = {
   groq:     callGroq,
 };
 
+// Strip _2, _3 ... suffix to get the base model name (e.g. "deepseek_2" → "deepseek")
+function baseModelId(id) {
+  return id.replace(/_\d+$/, '');
+}
+
 // ── Main: Get AI Action ────────────────────────────────────────────────────
 // lobsterConfig: { model, prompt, apiKey } — passed only for lobster seat
 async function getAIAction(modelId, apiKeys, gameState, handHistory, lobsterConfig = null) {
   const isLobster = !!lobsterConfig;
-  const apiKey  = isLobster ? lobsterConfig.apiKey : (apiKeys[modelId] || process.env[`${modelId.toUpperCase()}_API_KEY`]);
-  const adapter = ADAPTERS[isLobster ? lobsterConfig.model : modelId];
+  const base    = isLobster ? lobsterConfig.model : baseModelId(modelId);
+  const apiKey  = isLobster ? lobsterConfig.apiKey : (apiKeys[modelId] || process.env[`${base.toUpperCase()}_API_KEY`]);
+  const adapter = ADAPTERS[base];
 
   // Test mode: skip real API call
   if (apiKey === TEST_KEY) {
-    const result = testAction(isLobster ? lobsterConfig.model : modelId, gameState);
+    const result = testAction(modelId, gameState, base);
     console.log(`[AI] ${modelId} [TEST] → ${result.action}${result.raiseTotal ? ` ${result.raiseTotal}` : ''}`);
     return { ...result, trash: isLobster ? 'You all play like NPCs!' : undefined };
   }
 
   if (!apiKey || !adapter) {
-    console.warn(`[AI] No API key or adapter for ${modelId}, using fallback`);
+    console.warn(`[AI] No API key or adapter for ${modelId} (base: ${base}), using fallback`);
     return fallbackAction(gameState, modelId);
   }
 
-  const prompt    = buildPrompt(modelId, gameState, handHistory, lobsterConfig);
+  const prompt    = buildPrompt(modelId, base, gameState, handHistory, lobsterConfig);
   const maxTokens = isLobster ? 200 : 80;
 
   try {

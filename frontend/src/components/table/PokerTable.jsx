@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { useGameStore } from '../../store/gameStore.js';
 import { useAuthStore } from '../../store/authStore.js';
 import { useT } from '../../utils/i18n.js';
-import { AI_MODELS, MODEL_MAP } from '../../utils/constants.js';
+import { MODEL_MAP, resolveModel } from '../../utils/constants.js';
 import { getSocket } from '../../hooks/useSocket.js';
 import PlayerSeat from './PlayerSeat.jsx';
 import CommunityCards from './CommunityCards.jsx';
@@ -70,17 +70,19 @@ export default function PokerTable() {
           {/* Pre-game seat UI */}
           {!running && <TableLobby lobbyPlayers={lobbyPlayers} user={user} t={t} />}
 
-          {/* AI Seats (only during game) */}
-          {running && AI_MODELS.map((model, i) => {
-            const seat   = seatMap[model.id] || { id: model.id, chips: 0 };
-            const player = playerMap[model.id] || null;
-            const pos    = SEAT_POSITIONS[i];
-            const isActor = actorId === model.id;
-            const isBust  = seat.chips <= 0 && running;
+          {/* All seats (only during game) — driven by actual game seats, not hardcoded list */}
+          {running && seats.map((seat, i) => {
+            const player = playerMap[seat.id] || null;
+            const pos    = SEAT_POSITIONS[i % SEAT_POSITIONS.length];
+            const isActor = actorId === seat.id;
+            const isBust  = seat.chips <= 0;
+            const model   = seat.id === 'lobster'
+              ? lobsterModel
+              : resolveModel(seat.id);
 
             return (
               <div
-                key={model.id}
+                key={seat.id}
                 className="absolute"
                 style={{ top: pos.top, left: pos.left, transform: pos.transform }}
               >
@@ -94,22 +96,6 @@ export default function PokerTable() {
               </div>
             );
           })}
-
-          {/* Lobster seat */}
-          {running && seatMap['lobster'] && (() => {
-            const pos = SEAT_POSITIONS[9];
-            return (
-              <div className="absolute" style={{ top: pos.top, left: pos.left, transform: pos.transform }}>
-                <PlayerSeat
-                  model={lobsterModel}
-                  chips={seatMap['lobster'].chips}
-                  player={playerMap['lobster'] || null}
-                  isActor={actorId === 'lobster'}
-                  isBust={seatMap['lobster'].chips <= 0 && running}
-                />
-              </div>
-            );
-          })()}
         </div>
       </div>
     </div>
