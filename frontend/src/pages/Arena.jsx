@@ -140,23 +140,13 @@ export default function Arena() {
             </div>
             <div className="flex gap-2">
               {user && !running && (
-                <>
-                  <button
-                    onClick={() => handleStart(true)}
-                    disabled={starting}
-                    title="No API keys needed — AI uses local rule-based decisions"
-                    className="bg-[#2a2a2a] hover:bg-[#3a3a3a] border border-[#555] text-gray-300 px-2 md:px-4 py-2 rounded-xl font-semibold transition-colors disabled:opacity-50 text-xs md:text-sm"
-                  >
-                    {starting ? '...' : '🧪 Test'}
-                  </button>
-                  <button
-                    onClick={() => handleStart(false)}
-                    disabled={starting}
-                    className="bg-lobster hover:bg-red-700 text-white px-3 md:px-5 py-2 rounded-xl font-semibold transition-colors disabled:opacity-50 text-sm"
-                  >
-                    {starting ? 'Starting...' : '▶ Start'}
-                  </button>
-                </>
+                <button
+                  onClick={() => handleStart(false)}
+                  disabled={starting}
+                  className="bg-lobster hover:bg-red-700 text-white px-3 md:px-5 py-2 rounded-xl font-semibold transition-colors disabled:opacity-50 text-sm"
+                >
+                  {starting ? 'Starting...' : '▶ Start'}
+                </button>
               )}
               {user && running && (
                 <button

@@ -110,10 +110,11 @@ ${othersStr}
 Recent actions:
 ${recentActions || '  (none yet)'}
 
-${lobsterConfig
-  ? `Your personality: ${lobsterConfig.prompt || 'Be unpredictable and trash talk your opponents!'}
+${lobsterConfig?.prompt ? `Your personality and strategy: ${lobsterConfig.prompt}
+Stay in character. Let your personality influence your betting decisions, not just your trash talk.
 
-Your decision (three lines):
+` : ''}${lobsterConfig
+  ? `Your decision (three lines):
 Line 1 — THINK: <poker reasoning in 1-2 sentences>
 Line 2 — TRASH: <trash talk directed at opponents, 1 funny sentence>
 Line 3 — DECIDE: FOLD / CALL / CHECK / RAISE <amount>`
