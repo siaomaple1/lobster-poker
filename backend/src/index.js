@@ -184,9 +184,11 @@ function buildUserKeys(userId) {
 }
 
 function addToLobby(room, socket, user) {
+  const keys = buildUserKeys(user.id);
+  // Only seat users who have at least one API key — others are spectators
+  if (Object.keys(keys).length === 0) return;
   if (room.lobby.has(user.id)) clearTimeout(room.lobby.get(user.id).timer);
   const joinedAt = Date.now();
-  const keys = buildUserKeys(user.id);
   const timer = setTimeout(() => {
     const entry = room.lobby.get(user.id);
     if (entry && !entry.ready) {
