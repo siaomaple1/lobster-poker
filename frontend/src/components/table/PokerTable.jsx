@@ -142,6 +142,15 @@ function TableLobby({ lobbyPlayers, user }) {
                 <span className="text-[10px] md:text-xs text-green-400 font-semibold whitespace-nowrap max-w-[72px] truncate drop-shadow">
                   {player.username}
                 </span>
+                {player.models?.length > 0 && (
+                  <span className="text-[9px] text-gray-400 whitespace-nowrap max-w-[80px] truncate" title={player.models.map(id => MODEL_MAP[id]?.label || id).join(', ')}>
+                    {player.models.map(id => MODEL_MAP[id]?.emoji || '🤖').join('')}
+                    {' '}
+                    {player.models.length === 1
+                      ? MODEL_MAP[player.models[0]]?.label || player.models[0]
+                      : `${player.models.length} models`}
+                  </span>
+                )}
                 {isMe && (
                   <button
                     onClick={() => getSocket().emit('seat:leave')}

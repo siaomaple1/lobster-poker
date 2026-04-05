@@ -217,6 +217,7 @@ function lobbySnapshot(room) {
     avatar:   e.user.avatar,
     ready:    e.ready,
     joinedAt: e.joinedAt,
+    models:   Object.keys(e.keys),
   }));
 }
 
