@@ -399,11 +399,11 @@ io.on('connection', socket => {
     const r = rooms.get(socket.data.roomId);
     if (!r || r.engine.running) return;
     const u = socket.request.user;
-    if (!u) return socket.emit('seat:error', { error: '请先登录' });
+    if (!u) return socket.emit('seat:error', { error: 'Please sign in first' });
 
     const keys = buildUserKeys(u.id);
     if (Object.keys(keys).length === 0) {
-      return socket.emit('seat:error', { error: '请先去 Settings 页面填入你的 API Key' });
+      return socket.emit('seat:error', { error: 'Please go to Settings and add your API key first' });
     }
 
     if (r.lobby.has(u.id)) {
