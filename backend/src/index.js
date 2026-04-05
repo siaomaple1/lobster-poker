@@ -134,6 +134,13 @@ app.use('/api', apiRouter);
 
 app.get('/health', (_, res) => res.json({ ok: true }));
 
+// ── Serve frontend build (production) ──────────────────────────────────────
+const publicDir = path.join(__dirname, '../public');
+if (fs.existsSync(publicDir)) {
+  app.use(express.static(publicDir));
+  app.get('*', (_, res) => res.sendFile(path.join(publicDir, 'index.html')));
+}
+
 // ── Rooms ──────────────────────────────────────────────────────────────────
 const rooms = new Map();
 
