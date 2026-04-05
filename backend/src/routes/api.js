@@ -65,6 +65,12 @@ router.post('/lobster', requireAuth, (req, res) => {
   if (lobster_model && !AI_MODELS.includes(lobster_model)) {
     return res.status(400).json({ error: 'Unknown model' });
   }
+  if (lobster_name && lobster_name.trim().length > 20) {
+    return res.status(400).json({ error: 'Lobster name must be 20 characters or less' });
+  }
+  if (lobster_prompt && lobster_prompt.trim().length > 200) {
+    return res.status(400).json({ error: 'Personality prompt must be 200 characters or less' });
+  }
   stmts.saveLobster.run({
     lobster_name:   lobster_name?.trim()   || null,
     lobster_prompt: lobster_prompt?.trim() || null,

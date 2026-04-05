@@ -122,7 +122,7 @@ function MyLobsterCard({ user }) {
             value={name}
             onChange={e => setName(e.target.value)}
             placeholder={defaultName}
-            maxLength={40}
+            maxLength={20}
             className={inputCls}
           />
         </div>
@@ -134,7 +134,7 @@ function MyLobsterCard({ user }) {
             onChange={e => setPrompt(e.target.value)}
             placeholder="I trash talk everyone. I raise because I think they're bluffing. I fold when I smell fear..."
             rows={3}
-            maxLength={500}
+            maxLength={200}
             className={`${inputCls} resize-none`}
           />
         </div>
