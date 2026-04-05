@@ -130,16 +130,22 @@ app.use('/api/',     rateLimit({ windowMs: 60_000, max: 200, message: { error: '
 // Ensure session store directory exists
 fs.mkdirSync(path.join(__dirname, '../data'), { recursive: true });
 
-app.use(session({
+const sessionMiddleware = session({
   store: new SQLiteStore({ db: 'sessions.db', dir: path.join(__dirname, '../data') }),
   secret: process.env.SESSION_SECRET || 'dev-secret-change-me',
   resave: false,
   saveUninitialized: false,
   cookie: { secure: process.env.NODE_ENV === 'production', httpOnly: true, maxAge: 7 * 24 * 60 * 60 * 1000 },
-}));
+});
 
+app.use(sessionMiddleware);
 app.use(passport.initialize());
 app.use(passport.session());
+
+// Share session + passport with Socket.io so socket.request.user is available
+io.engine.use(sessionMiddleware);
+io.engine.use(passport.initialize());
+io.engine.use(passport.session());
 
 // ── Routes ─────────────────────────────────────────────────────────────────
 app.use('/auth', authRouter);
@@ -191,6 +197,20 @@ io.on('connection', socket => {
     socket.data.roomId = roomId;
     socket.emit('game:status', target.engine.getStatus());
     console.log(`[Socket] ${socket.id} room ${prev} → ${roomId}`);
+  });
+
+  // ── Chat ──────────────────────────────────────────────────────────────────
+  socket.on('chat:send', ({ message }) => {
+    const user = socket.request.user;
+    if (!user || !message?.trim()) return;
+    const msg = {
+      userId:   user.id,
+      username: user.display_name || user.username,
+      avatar:   user.avatar || null,
+      message:  message.trim().slice(0, 300),
+      ts:       Date.now(),
+    };
+    io.to(`table:${socket.data.roomId}`).emit('chat:message', msg);
   });
 
   socket.on('disconnect', () => {

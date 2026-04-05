@@ -8,7 +8,7 @@ export const useGameStore = create((set, get) => ({
       currentRoomId: roomId,
       running: false, gameId: null, handNumber: 0, seats: [],
       stage: null, board: [], pot: 0, maxBet: 0, actorId: null, players: [],
-      bettingOpen: false, bettingEndsAt: null, log: [],
+      bettingOpen: false, bettingEndsAt: null, log: [], chatMessages: [],
       lastWinner: null, lastWinHand: null,
     });
   },
@@ -31,6 +31,12 @@ export const useGameStore = create((set, get) => ({
 
   // ── Action log ────────────────────────────────────────────────────────────
   log: [],
+
+  // ── Chat ─────────────────────────────────────────────────────────────────
+  chatMessages: [],
+  addChatMessage(msg) {
+    set(s => ({ chatMessages: [...s.chatMessages.slice(-49), msg] }));
+  },
 
   // ── Last hand result ─────────────────────────────────────────────────────
   lastWinner:   null,

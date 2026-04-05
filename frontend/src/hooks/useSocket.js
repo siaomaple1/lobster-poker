@@ -46,11 +46,12 @@ export function useGameSocket() {
     on('game:hand_end',       data => storeRef.current.handleHandEnd(data));
     on('game:end',            data => storeRef.current.handleGameEnd(data));
     on('game:payouts',        data => storeRef.current.handlePayouts(data));
+    on('chat:message',        data => storeRef.current.addChatMessage(data));
 
     return () => {
       ['game:status','game:start','game:betting_window','game:betting_closed',
        'game:hand_start','game:thinking','game:action','game:showdown',
-       'game:hand_end','game:end','game:payouts'].forEach(e => s.off(e));
+       'game:hand_end','game:end','game:payouts','chat:message'].forEach(e => s.off(e));
     };
   }, []);
 }
