@@ -6,6 +6,7 @@ const { requireAuth } = require('../middleware/auth');
 const { stmts, getCoinsForUser, secondsUntilReset } = require('../db/database');
 const { AI_MODELS } = require('../game/game-engine');
 const { TEST_KEY } = require('../game/ai-player');
+const { encrypt, decrypt } = require('../utils/crypto');
 
 const router = express.Router();
 
@@ -45,7 +46,7 @@ router.put('/api-keys/:model', requireAuth, (req, res) => {
     return res.status(400).json({ error: 'Invalid API key' });
   }
 
-  stmts.upsertApiKey.run(req.user.id, model, apiKey.trim());
+  stmts.upsertApiKey.run(req.user.id, model, encrypt(apiKey.trim()));
   res.json({ ok: true });
 });
 
@@ -185,7 +186,10 @@ router.post('/rooms', requireAuth, (req, res) => {
 function buildKeys(userId, testMode) {
   const rows = stmts.getAllApiKeys.all(userId);
   const keys = {};
-  for (const row of rows) keys[row.model] = row.api_key;
+  for (const row of rows) {
+    const plain = decrypt(row.api_key) ?? row.api_key; // fallback: plaintext (pre-migration)
+    keys[row.model] = plain;
+  }
   for (const m of AI_MODELS) {
     if (!keys[m] && process.env[`${m.toUpperCase()}_API_KEY`]) {
       keys[m] = process.env[`${m.toUpperCase()}_API_KEY`];

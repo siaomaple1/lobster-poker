@@ -16,6 +16,7 @@ const rateLimit      = require('express-rate-limit');
 const { stmts }              = require('./db/database');
 const apiRouter              = require('./routes/api');
 const { GameEngine, AI_MODELS } = require('./game/game-engine');
+const { encrypt, decrypt, isEncrypted } = require('./utils/crypto');
 
 const PORT       = process.env.PORT || 3001;
 const BASE_URL   = process.env.BASE_URL   || `http://localhost:${PORT}`;
@@ -174,7 +175,10 @@ function createRoom(roomId, name, createdBy = null) {
 function buildUserKeys(userId) {
   const rows = stmts.getAllApiKeys.all(userId);
   const keys = {};
-  for (const row of rows) keys[row.model] = row.api_key;
+  for (const row of rows) {
+    const plain = decrypt(row.api_key) ?? row.api_key;
+    keys[row.model] = plain;
+  }
   for (const m of AI_MODELS) {
     if (!keys[m] && process.env[`${m.toUpperCase()}_API_KEY`]) {
       keys[m] = process.env[`${m.toUpperCase()}_API_KEY`];
@@ -429,6 +433,25 @@ io.on('connection', socket => {
     console.log(`[Socket] ${socket.id} disconnected`);
   });
 });
+
+// ── Migrate plaintext API keys → encrypted ─────────────────────────────────
+(function migrateApiKeys() {
+  try {
+    const { db } = require('./db/database');
+    const allKeys = db.prepare('SELECT id, api_key FROM user_api_keys').all();
+    const update  = db.prepare('UPDATE user_api_keys SET api_key = ? WHERE id = ?');
+    let migrated = 0;
+    for (const row of allKeys) {
+      if (!isEncrypted(row.api_key)) {
+        update.run(encrypt(row.api_key), row.id);
+        migrated++;
+      }
+    }
+    if (migrated > 0) console.log(`[Crypto] Migrated ${migrated} plaintext API key(s) → encrypted`);
+  } catch (e) {
+    console.error('[Crypto] Migration error:', e.message);
+  }
+})();
 
 // ── Start ──────────────────────────────────────────────────────────────────
 server.listen(PORT, () => {
