@@ -1,7 +1,8 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useGameStore } from '../store/gameStore.js';
 import { useAuthStore } from '../store/authStore.js';
-import { startGame, stopGame, getRooms, createRoom } from '../utils/api.js';
+import { stopGame, getRooms, createRoom } from '../utils/api.js';
+import { getSocket } from '../hooks/useSocket.js';
 import PokerTable from '../components/table/PokerTable.jsx';
 import BettingPanel from '../components/betting/BettingPanel.jsx';
 import ActionLog from '../components/log/ActionLog.jsx';
@@ -9,7 +10,6 @@ import ActionLog from '../components/log/ActionLog.jsx';
 export default function Arena() {
   const { running, gameId, handNumber, seats, currentRoomId, setCurrentRoomId } = useGameStore();
   const { user } = useAuthStore();
-  const [starting, setStarting] = useState(false);
   const [rooms, setRooms] = useState([]);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newRoomName, setNewRoomName] = useState('');
@@ -28,17 +28,6 @@ export default function Arena() {
   const handleSwitchRoom = (roomId) => {
     setCurrentRoomId(roomId);
     // useSocket watches currentRoomId and emits room:join automatically
-  };
-
-  const handleStart = async (testMode = false) => {
-    setStarting(true);
-    try {
-      await startGame(currentRoomId, testMode);
-    } catch (e) {
-      alert(e.response?.data?.error || 'Failed to start');
-    }
-    setStarting(false);
-    fetchRooms();
   };
 
   const handleStop = async () => {
@@ -139,15 +128,6 @@ export default function Arena() {
               {gameId && <div className="text-xs text-gray-500">Game #{gameId}</div>}
             </div>
             <div className="flex gap-2">
-              {user && !running && (
-                <button
-                  onClick={() => handleStart(false)}
-                  disabled={starting}
-                  className="bg-lobster hover:bg-red-700 text-white px-3 md:px-5 py-2 rounded-xl font-semibold transition-colors disabled:opacity-50 text-sm"
-                >
-                  {starting ? 'Starting...' : '▶ Start'}
-                </button>
-              )}
               {user && running && (
                 <button
                   onClick={handleStop}
@@ -164,6 +144,9 @@ export default function Arena() {
               )}
             </div>
           </div>
+
+          {/* Lobby */}
+          {!running && <LobbyPanel user={user} />}
 
           {/* Main layout */}
           <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-3 md:gap-4">
@@ -213,6 +196,77 @@ export default function Arena() {
             </div>
           </div>
         </div>
+      )}
+    </div>
+  );
+}
+
+function LobbyPanel({ user }) {
+  const { lobbyPlayers } = useGameStore();
+  const [countdown, setCountdown] = useState(8);
+
+  const myEntry = user ? lobbyPlayers.find(p => p.id === user.id) : null;
+  const isReady = myEntry?.ready ?? false;
+
+  useEffect(() => {
+    if (!myEntry || isReady) return;
+    const tick = () => {
+      const left = Math.max(0, Math.ceil((myEntry.joinedAt + 8000 - Date.now()) / 1000));
+      setCountdown(left);
+    };
+    tick();
+    const id = setInterval(tick, 250);
+    return () => clearInterval(id);
+  }, [myEntry?.joinedAt, isReady]);
+
+  const readyCount = lobbyPlayers.filter(p => p.ready).length;
+
+  return (
+    <div className="bg-[#1a1a1a] border border-[#333] rounded-2xl p-4 mb-3 md:mb-4 space-y-3">
+      <div className="flex items-center justify-between">
+        <span className="text-sm font-semibold text-gray-300">
+          🎮 Lobby — {readyCount}/{lobbyPlayers.length} ready
+        </span>
+        <span className="text-xs text-gray-500">Need 2 ready to start</span>
+      </div>
+
+      {lobbyPlayers.length === 0 ? (
+        <div className="text-xs text-gray-600 text-center py-1">
+          {user ? 'Waiting for players to join...' : 'Sign in to join the lobby'}
+        </div>
+      ) : (
+        <div className="flex flex-wrap gap-2">
+          {lobbyPlayers.map(p => (
+            <div key={p.id} className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs border
+              ${p.ready ? 'bg-green-900/30 border-green-700 text-green-400' : 'bg-[#2a2a2a] border-[#444] text-gray-400'}`}>
+              {p.avatar
+                ? <img src={p.avatar} className="w-4 h-4 rounded-full" alt="" />
+                : <div className="w-4 h-4 rounded-full bg-[#555] flex items-center justify-center text-[8px]">{p.username[0]}</div>
+              }
+              <span>{p.username}</span>
+              <span className="font-bold">{p.ready ? '✓' : '…'}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {user && myEntry && !isReady && (
+        <button
+          onClick={() => getSocket().emit('room:ready')}
+          className="w-full bg-green-700 hover:bg-green-600 text-white py-2 rounded-xl font-semibold text-sm transition-colors"
+        >
+          ✓ Ready ({countdown}s)
+        </button>
+      )}
+      {user && myEntry && isReady && (
+        <div className="w-full bg-green-900/40 border border-green-700/50 text-green-400 py-2 rounded-xl font-semibold text-sm text-center">
+          ✓ Ready — waiting for others...
+        </div>
+      )}
+      {!user && (
+        <a href="/login" className="block text-center text-xs text-lobster hover:underline">
+          Sign in to join the lobby →
+        </a>
       )}
     </div>
   );

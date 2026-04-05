@@ -13,9 +13,9 @@ const path           = require('path');
 const fs             = require('fs');
 
 const rateLimit      = require('express-rate-limit');
-const { stmts }      = require('./db/database');
-const apiRouter      = require('./routes/api');
-const { GameEngine } = require('./game/game-engine');
+const { stmts }              = require('./db/database');
+const apiRouter              = require('./routes/api');
+const { GameEngine, AI_MODELS } = require('./game/game-engine');
 
 const PORT       = process.env.PORT || 3001;
 const BASE_URL   = process.env.BASE_URL   || `http://localhost:${PORT}`;
@@ -165,9 +165,99 @@ const rooms = new Map();
 
 function createRoom(roomId, name, createdBy = null) {
   const engine = new GameEngine(io, roomId);
-  rooms.set(roomId, { id: roomId, name, engine, createdBy });
+  rooms.set(roomId, { id: roomId, name, engine, createdBy, lobby: new Map() });
   console.log(`[Room ${roomId}] "${name}" created`);
   return rooms.get(roomId);
+}
+
+// ── Lobby helpers ───────────────────────────────────────────────────────────
+function buildUserKeys(userId) {
+  const rows = stmts.getAllApiKeys.all(userId);
+  const keys = {};
+  for (const row of rows) keys[row.model] = row.api_key;
+  for (const m of AI_MODELS) {
+    if (!keys[m] && process.env[`${m.toUpperCase()}_API_KEY`]) {
+      keys[m] = process.env[`${m.toUpperCase()}_API_KEY`];
+    }
+  }
+  return keys;
+}
+
+function addToLobby(room, socket, user) {
+  if (room.lobby.has(user.id)) clearTimeout(room.lobby.get(user.id).timer);
+  const joinedAt = Date.now();
+  const keys = buildUserKeys(user.id);
+  const timer = setTimeout(() => {
+    const entry = room.lobby.get(user.id);
+    if (entry && !entry.ready) {
+      entry.ready = true;
+      emitLobby(room);
+      checkAutoStart(room);
+    }
+  }, 8000);
+  room.lobby.set(user.id, { user, ready: false, keys, timer, socketId: socket.id, joinedAt });
+}
+
+function removeFromLobby(room, socketId) {
+  for (const [userId, entry] of room.lobby) {
+    if (entry.socketId === socketId) {
+      clearTimeout(entry.timer);
+      room.lobby.delete(userId);
+      return;
+    }
+  }
+}
+
+function lobbySnapshot(room) {
+  return [...room.lobby.values()].map(e => ({
+    id:       e.user.id,
+    username: e.user.display_name || e.user.username,
+    avatar:   e.user.avatar,
+    ready:    e.ready,
+    joinedAt: e.joinedAt,
+  }));
+}
+
+function emitLobby(room) {
+  io.to(`table:${room.id}`).emit('room:lobby', { players: lobbySnapshot(room) });
+}
+
+function checkAutoStart(room) {
+  if (room.engine.running) return;
+  const readyEntries = [...room.lobby.values()].filter(e => e.ready);
+  if (readyEntries.length < 2) return;
+
+  const mergedKeys = {};
+  for (const entry of readyEntries) {
+    for (const [model, key] of Object.entries(entry.keys)) {
+      if (!mergedKeys[model]) mergedKeys[model] = key;
+    }
+  }
+  const activeModels = AI_MODELS.filter(m => mergedKeys[m]);
+  if (activeModels.length < 2) {
+    io.to(`table:${room.id}`).emit('room:lobby_error', { error: 'Not enough AI API keys between ready players (need 2+ models)' });
+    return;
+  }
+
+  const createdBy = readyEntries[0].user.id;
+  for (const entry of room.lobby.values()) clearTimeout(entry.timer);
+  room.lobby.clear();
+  io.to(`table:${room.id}`).emit('room:lobby', { players: [] });
+
+  room.engine.apiKeys = mergedKeys;
+  room.engine.start(createdBy, activeModels)
+    .then(() => rebuildLobby(room))
+    .catch(err => console.error(`[Room ${room.id}] Engine error:`, err));
+}
+
+function rebuildLobby(room) {
+  const socketsInRoom = io.sockets.adapter.rooms.get(`table:${room.id}`);
+  if (!socketsInRoom) return;
+  for (const socketId of socketsInRoom) {
+    const s = io.sockets.sockets.get(socketId);
+    if (s?.request.user) addToLobby(room, s, s.request.user);
+  }
+  emitLobby(room);
 }
 
 createRoom(1, 'Main Hall');   // permanent default lobby
@@ -185,18 +275,50 @@ io.on('connection', socket => {
 
   // Send current game state for the room the client joined
   const room = rooms.get(defaultRoomId);
-  if (room) socket.emit('game:status', room.engine.getStatus());
+  if (room) {
+    socket.emit('game:status', room.engine.getStatus());
+    socket.emit('room:lobby', { players: lobbySnapshot(room) });
+  }
 
   // Client asks to switch rooms
   socket.on('room:join', ({ roomId }) => {
     const target = rooms.get(roomId);
     if (!target) return socket.emit('room:error', { error: 'Room not found' });
     const prev = socket.data.roomId;
+
+    // Remove from old room lobby
+    const prevRoom = rooms.get(prev);
+    if (prevRoom && prev !== roomId) {
+      removeFromLobby(prevRoom, socket.id);
+      emitLobby(prevRoom);
+    }
+
     socket.leave(`table:${prev}`);
     socket.join(`table:${roomId}`);
     socket.data.roomId = roomId;
     socket.emit('game:status', target.engine.getStatus());
+
+    // Add to new room lobby if authenticated and game not running
+    const user = socket.request.user;
+    if (user && !target.engine.running) {
+      addToLobby(target, socket, user);
+    }
+    emitLobby(target);
     console.log(`[Socket] ${socket.id} room ${prev} → ${roomId}`);
+  });
+
+  // Client signals ready
+  socket.on('room:ready', () => {
+    const r = rooms.get(socket.data.roomId);
+    if (!r || r.engine.running) return;
+    const u = socket.request.user;
+    if (!u) return;
+    const entry = r.lobby.get(u.id);
+    if (!entry || entry.ready) return;
+    clearTimeout(entry.timer);
+    entry.ready = true;
+    emitLobby(r);
+    checkAutoStart(r);
   });
 
   // ── Chat ──────────────────────────────────────────────────────────────────
@@ -214,6 +336,8 @@ io.on('connection', socket => {
   });
 
   socket.on('disconnect', () => {
+    const r = rooms.get(socket.data.roomId);
+    if (r) { removeFromLobby(r, socket.id); emitLobby(r); }
     console.log(`[Socket] ${socket.id} disconnected`);
   });
 });
