@@ -475,10 +475,8 @@ io.on('connection', socket => {
   socket.on('seat:leave', () => {
     const r = rooms.get(socket.data.roomId);
     if (!r || r.engine.running) return;
-    const u = socket.request.user;
-    if (!u) return;
-    const entry = r.lobby.get(u.id);
-    if (entry) { clearTimeout(entry.timer); r.lobby.delete(u.id); emitLobby(r); }
+    removeFromLobby(r, socket.id);
+    emitLobby(r);
   });
 
   socket.on('disconnect', () => {

@@ -15,6 +15,8 @@ export const useAuthStore = create((set) => ({
   },
 
   logout: async () => {
+    const { getSocket } = await import('../hooks/useSocket.js');
+    getSocket()?.emit('seat:leave');
     await apiLogout();
     set({ user: null });
   },

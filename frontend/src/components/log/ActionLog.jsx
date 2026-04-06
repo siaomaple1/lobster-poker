@@ -41,7 +41,7 @@ export default function ActionLog() {
   );
 
   return (
-    <div className="bg-[#1a1a1a] border border-[#333] rounded-2xl flex flex-col min-h-[400px]">
+    <div className="bg-[#1a1a1a] border border-[#333] rounded-2xl flex flex-col h-[420px]">
       <div className="flex border-b border-[#333] flex-shrink-0">
         {tabBtn('log', t.log.logTab)}
         {tabBtn('thoughts', t.log.thoughtsTab)}
