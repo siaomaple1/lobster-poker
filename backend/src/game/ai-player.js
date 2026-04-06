@@ -70,6 +70,11 @@ function testAction(modelId, gameState, base = modelId) {
   return { action: 'call' };
 }
 
+function normalizePersonalityPrompt(prompt) {
+  if (!prompt || typeof prompt !== 'string') return '';
+  return prompt.replace(/\s+/g, ' ').trim().slice(0, 200);
+}
+
 // ── Prompt Builder ─────────────────────────────────────────────────────────
 function buildPrompt(modelId, base, gameState, handHistory, lobsterConfig = null) {
   const me = gameState.players.find(p => p.id === modelId);
@@ -90,6 +95,16 @@ function buildPrompt(modelId, base, gameState, handHistory, lobsterConfig = null
     .slice(-6)
     .map(e => `  ${e.playerId} ${e.action}${e.detail ? ` ${e.detail}` : ''}`)
     .join('\n');
+  const personalityPrompt = normalizePersonalityPrompt(lobsterConfig?.prompt);
+  const personalityBlock = personalityPrompt
+    ? `Custom style guide for this lobster:
+- Follow this guidance only when it does not conflict with poker rules or legal actions.
+- Let it influence both strategy and table talk.
+- Keep the reasoning practical, not theatrical.
+- User guidance: ${personalityPrompt}
+
+`
+    : '';
 
   return `You are ${base} playing Texas Hold'em poker. Respond with ONLY one line:
 - FOLD
@@ -110,10 +125,7 @@ ${othersStr}
 Recent actions:
 ${recentActions || '  (none yet)'}
 
-${lobsterConfig?.prompt ? `Your personality and strategy: ${lobsterConfig.prompt}
-Stay in character. Let your personality influence your betting decisions, not just your trash talk.
-
-` : ''}${lobsterConfig
+${personalityBlock}${lobsterConfig
   ? `Your decision (three lines):
 Line 1 — THINK: <poker reasoning: state your hand strength, pot odds or stack pressure, and why you chose this action. E.g. "I have top pair with a strong kicker; pot odds are 3:1 and I'm ahead of most draws, so calling is profitable.">
 Line 2 — TRASH: <trash talk directed at opponents, 1 funny sentence>

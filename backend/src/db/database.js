@@ -174,6 +174,9 @@ const stmts = {
   placeBet: db.prepare(`
     INSERT INTO user_bets (user_id, game_id, hand_number, model, amount) VALUES (?, ?, ?, ?, ?)
   `),
+  getUserBetForHand: db.prepare(`
+    SELECT * FROM user_bets WHERE user_id = ? AND game_id = ? AND hand_number = ? LIMIT 1
+  `),
   getBetsForHand: db.prepare(`SELECT * FROM user_bets WHERE game_id = ? AND hand_number = ?`),
   settleBet: db.prepare(`UPDATE user_bets SET settled = 1, payout = ? WHERE id = ?`),
   getUserBets: db.prepare(`SELECT * FROM user_bets WHERE user_id = ? ORDER BY placed_at DESC LIMIT 50`),

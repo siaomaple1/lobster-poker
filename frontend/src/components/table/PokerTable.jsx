@@ -1,4 +1,3 @@
-import { useEffect } from 'react';
 import { useGameStore } from '../../store/gameStore.js';
 import { useAuthStore } from '../../store/authStore.js';
 import { useT } from '../../utils/i18n.js';
@@ -11,16 +10,16 @@ const LOBSTER_MODEL = { id: 'lobster', label: '🦞 Lobster', color: '#e53e3e', 
 const MAX_LOBBY_SEATS = 6;
 
 const SEAT_POSITIONS = [
-  { top: '75%', left: '50%',  transform: 'translate(-50%,-50%)' },
-  { top: '85%', left: '25%',  transform: 'translate(-50%,-50%)' },
-  { top: '65%', left: '8%',   transform: 'translate(0,-50%)' },
-  { top: '35%', left: '8%',   transform: 'translate(0,-50%)' },
-  { top: '15%', left: '25%',  transform: 'translate(-50%,-50%)' },
-  { top: '15%', left: '50%',  transform: 'translate(-50%,-50%)' },
-  { top: '15%', left: '75%',  transform: 'translate(-50%,-50%)' },
-  { top: '35%', left: '88%',  transform: 'translate(-100%,-50%)' },
-  { top: '65%', left: '88%',  transform: 'translate(-100%,-50%)' },
-  { top: '85%', left: '75%',  transform: 'translate(-50%,-50%)' },
+  { top: '75%', left: '50%', transform: 'translate(-50%,-50%)' },
+  { top: '85%', left: '25%', transform: 'translate(-50%,-50%)' },
+  { top: '65%', left: '8%', transform: 'translate(0,-50%)' },
+  { top: '35%', left: '8%', transform: 'translate(0,-50%)' },
+  { top: '15%', left: '25%', transform: 'translate(-50%,-50%)' },
+  { top: '15%', left: '50%', transform: 'translate(-50%,-50%)' },
+  { top: '15%', left: '75%', transform: 'translate(-50%,-50%)' },
+  { top: '35%', left: '88%', transform: 'translate(-100%,-50%)' },
+  { top: '65%', left: '88%', transform: 'translate(-100%,-50%)' },
+  { top: '85%', left: '75%', transform: 'translate(-50%,-50%)' },
 ];
 
 export default function PokerTable() {
@@ -28,10 +27,8 @@ export default function PokerTable() {
   const { user } = useAuthStore();
   const t = useT();
 
-  const seatMap   = Object.fromEntries((seats   || []).map(s => [s.id, s]));
   const playerMap = Object.fromEntries((players || []).map(p => [p.id, p]));
 
-  // Use the user's custom lobster name if set, otherwise fall back to the default label
   const lobsterModel = lobsterName
     ? { id: 'lobster', label: lobsterName, color: '#e53e3e', emoji: '🦞' }
     : LOBSTER_MODEL;
@@ -45,7 +42,6 @@ export default function PokerTable() {
         >
           <div className="absolute inset-4 rounded-[50%] border-2 border-[#6b4f10] opacity-50" />
 
-          {/* Center info */}
           <div className="absolute inset-0 flex flex-col items-center justify-center">
             {running && stage && (
               <div className="text-xs text-[#a8d4a8] uppercase tracking-widest mb-1 font-mono">
@@ -54,7 +50,7 @@ export default function PokerTable() {
             )}
             {running && pot > 0 && (
               <div className="text-gold font-display text-lg font-bold">
-                🪙 {pot.toLocaleString()}
+                Chips {pot.toLocaleString()}
               </div>
             )}
             {!running && (
@@ -67,16 +63,14 @@ export default function PokerTable() {
             {running && <CommunityCards cards={board} />}
           </div>
 
-          {/* Pre-game seat UI */}
           {!running && <TableLobby lobbyPlayers={lobbyPlayers} user={user} t={t} />}
 
-          {/* All seats (only during game) — driven by actual game seats, not hardcoded list */}
           {running && seats.map((seat, i) => {
             const player = playerMap[seat.id] || null;
-            const pos    = SEAT_POSITIONS[i % SEAT_POSITIONS.length];
+            const pos = SEAT_POSITIONS[i % SEAT_POSITIONS.length];
             const isActor = actorId === seat.id;
-            const isBust  = seat.chips <= 0;
-            const model   = seat.id === 'lobster'
+            const isBust = seat.chips <= 0;
+            const model = seat.id === 'lobster'
               ? lobsterModel
               : resolveModel(seat.id);
 
@@ -104,13 +98,6 @@ export default function PokerTable() {
 
 function TableLobby({ lobbyPlayers, user, t }) {
   const isSitting = user ? lobbyPlayers.some(p => p.id === user.id) : false;
-
-  useEffect(() => {
-    const s = getSocket();
-    const handler = (data) => alert(data.error);
-    s.on('seat:error', handler);
-    return () => s.off('seat:error', handler);
-  }, []);
 
   return (
     <>
@@ -159,7 +146,7 @@ function TableLobby({ lobbyPlayers, user, t }) {
               </button>
             ) : (
               <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-black/20 border-2 border-dashed border-white/10 flex items-center justify-center text-white/20 text-xs">
-                —
+                -
               </div>
             )}
           </div>

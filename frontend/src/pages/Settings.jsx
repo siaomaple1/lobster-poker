@@ -7,15 +7,15 @@ import { AI_MODELS } from '../utils/constants.js';
 import { getApiKeys, saveApiKey, deleteApiKey } from '../utils/api.js';
 
 const MODEL_META = {
-  claude:   { hint: 'sk-ant-api03-...' },
-  gpt:      { hint: 'sk-proj-...' },
+  claude: { hint: 'sk-ant-api03-...' },
+  gpt: { hint: 'sk-proj-...' },
   deepseek: { hint: 'sk-...' },
-  gemini:   { hint: 'AIzaSy...' },
-  grok:     { hint: 'xai-...' },
-  qwen:     { hint: 'sk-...' },
-  mistral:  { hint: '...' },
-  cohere:   { hint: '...' },
-  groq:     { hint: 'gsk_...' },
+  gemini: { hint: 'AIzaSy...' },
+  grok: { hint: 'xai-...' },
+  qwen: { hint: 'sk-...' },
+  mistral: { hint: '...' },
+  cohere: { hint: '...' },
+  groq: { hint: 'gsk_...' },
 };
 
 export default function Settings() {
@@ -24,12 +24,12 @@ export default function Settings() {
   const { show: showToast } = useToastStore();
   if (!user) return <Navigate to="/login" replace />;
 
-  const [keys, setKeys]       = useState({});
+  const [keys, setKeys] = useState({});
   const [editing, setEditing] = useState(null);
   const [inputVal, setInputVal] = useState('');
   const [showKey, setShowKey] = useState({});
-  const [saving, setSaving]   = useState(false);
-  const [status, setStatus]   = useState({});
+  const [saving, setSaving] = useState(false);
+  const [status, setStatus] = useState({});
 
   useEffect(() => {
     getApiKeys().then(setKeys).catch(() => {});
@@ -41,14 +41,18 @@ export default function Settings() {
     setStatus(s => ({ ...s, [id]: null }));
   };
 
-  const cancelEdit = () => { setEditing(null); setInputVal(''); };
+  const cancelEdit = () => {
+    setEditing(null);
+    setInputVal('');
+  };
 
   const handleSave = async (id) => {
     if (inputVal.trim().length < 8) return;
     setSaving(true);
     try {
-      await saveApiKey(id, inputVal.trim());
-      setKeys(k => ({ ...k, [id]: inputVal.trim().slice(0, 4) + '••••' + inputVal.trim().slice(-4) }));
+      const trimmed = inputVal.trim();
+      await saveApiKey(id, trimmed);
+      setKeys(k => ({ ...k, [id]: `${trimmed.slice(0, 4)}****${trimmed.slice(-4)}` }));
       setStatus(s => ({ ...s, [id]: 'saved' }));
       setEditing(null);
       setInputVal('');
@@ -71,7 +75,7 @@ export default function Settings() {
   };
 
   const onKeyDown = (e, id) => {
-    if (e.key === 'Enter')  handleSave(id);
+    if (e.key === 'Enter') handleSave(id);
     if (e.key === 'Escape') cancelEdit();
   };
 
@@ -79,7 +83,6 @@ export default function Settings() {
 
   return (
     <div className="max-w-2xl mx-auto p-4 lg:p-8 space-y-6">
-      {/* Header */}
       <div className="flex items-end justify-between">
         <div>
           <h1 className="text-2xl font-bold text-white">{t.settings.title}</h1>
@@ -90,7 +93,6 @@ export default function Settings() {
         </div>
       </div>
 
-      {/* Security notice */}
       <div className="bg-[#1a2a1a] border border-green-800/50 rounded-2xl p-4 space-y-2.5">
         <div className="flex items-center gap-2 text-green-400 font-semibold text-sm">
           {t.settings.securityTitle}
@@ -104,7 +106,7 @@ export default function Settings() {
             <span className="text-green-500 mt-0.5 shrink-0">✓</span>
             <span>
               {t.settings.sec2}{' '}
-              <span className="font-mono text-gray-400 text-xs">sk-a••••xyz</span>
+              <span className="font-mono text-gray-400 text-xs">sk-a****xyz</span>
               {t.settings.sec2b}
             </span>
           </li>
@@ -115,11 +117,10 @@ export default function Settings() {
         </ul>
       </div>
 
-      {/* Model list */}
       <div className="space-y-3">
         {AI_MODELS.map(m => {
-          const meta      = MODEL_META[m.id] || {};
-          const hasKey    = !!keys[m.id];
+          const meta = MODEL_META[m.id] || {};
+          const hasKey = !!keys[m.id];
           const isEditing = editing === m.id;
           const isVisible = !!showKey[m.id];
 
@@ -171,8 +172,7 @@ export default function Settings() {
                     <div className="text-xs font-mono mt-0.5 truncate">
                       {hasKey
                         ? <span className="text-gray-400">{keys[m.id]}</span>
-                        : <span className="text-gray-600">{meta.hint}</span>
-                      }
+                        : <span className="text-gray-600">{meta.hint}</span>}
                     </div>
                   )}
                 </div>
@@ -210,7 +210,7 @@ export default function Settings() {
                           className="bg-[#2a2a2a] hover:bg-red-950 text-gray-500 hover:text-red-400
                             text-xs px-2.5 py-1.5 rounded-lg transition-colors border border-[#3a3a3a]"
                         >
-                          ✕
+                          ×
                         </button>
                       )}
                     </>

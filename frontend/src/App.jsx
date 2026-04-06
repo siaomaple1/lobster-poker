@@ -19,7 +19,7 @@ export default function App() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#111]">
-        <div className="text-4xl animate-spin">🦞</div>
+        <div className="text-4xl animate-spin">♣</div>
       </div>
     );
   }

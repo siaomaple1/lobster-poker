@@ -6,6 +6,51 @@ import { getCoins, getMyBets, getLobster, saveLobster, getApiKeys, getAgentToken
 import { formatCoins, formatTimer } from '../utils/format.js';
 import { AI_MODELS, MODEL_MAP } from '../utils/constants.js';
 
+const PROMPT_PRESETS = [
+  { label: 'Aggro', text: 'Play aggressively, pressure medium stacks, and bluff when action checks to you.' },
+  { label: 'Nit', text: 'Play tight, avoid marginal calls, and only build big pots with strong value.' },
+  { label: 'Trash Talk', text: 'Use short, funny trash talk, but keep it playful instead of toxic.' },
+  { label: 'Math', text: 'Talk about pot odds, stack pressure, blockers, and board texture in your reasoning.' },
+  { label: 'Showman', text: 'Act dramatic, confident, and theatrical when you win or bluff.' },
+];
+
+const BANNED_PROMPT_TERMS = [
+  'fuck', 'fucking', 'shit', 'bitch', 'asshole', 'motherfucker',
+  '傻逼', '傻比', '弱智', '智障', '他妈', '妈的', '操你', '去死',
+];
+
+function validatePrompt(value) {
+  const trimmed = value.trim();
+  if (!trimmed) return '';
+  if (trimmed.length > 200) return 'Prompt must be 200 characters or less.';
+  if (trimmed.length < 12) return 'Prompt is too short. Give at least a little strategy or style guidance.';
+
+  const lettersOnly = trimmed.toLowerCase().replace(/[^a-z\u4e00-\u9fff]/g, '');
+  const uniqueChars = new Set(lettersOnly);
+  if (lettersOnly && uniqueChars.size <= 3) {
+    return 'Prompt looks too repetitive. Add real strategy or personality guidance.';
+  }
+
+  const words = trimmed.split(/\s+/).filter(Boolean);
+  if (words.length <= 2 && trimmed.length < 20) {
+    return 'Prompt is too vague. Try describing play style, reasoning, or table talk.';
+  }
+
+  const lower = trimmed.toLowerCase();
+  const badHits = BANNED_PROMPT_TERMS.filter((term) => lower.includes(term));
+  if (badHits.length > 0) {
+    const scrubbed = trimmed
+      .replace(/[^a-zA-Z\u4e00-\u9fff\s]/g, ' ')
+      .split(/\s+/)
+      .filter(Boolean);
+    if (scrubbed.length <= badHits.length + 2) {
+      return 'Prompt is mostly profanity right now. Add actual strategy or personality guidance.';
+    }
+  }
+
+  return '';
+}
+
 export default function Profile() {
   const { user } = useAuthStore();
   const t = useT();
@@ -13,7 +58,6 @@ export default function Profile() {
 
   return (
     <div className="max-w-2xl mx-auto p-4 lg:p-8 space-y-6">
-      {/* User card */}
       <div className="bg-[#1e1e1e] border border-[#333] rounded-2xl p-6 flex items-center gap-4">
         {user.avatar && (
           <img src={user.avatar} alt={user.username} className="w-16 h-16 rounded-full border-2 border-[#444]" />
@@ -26,8 +70,10 @@ export default function Profile() {
 
       <CoinsCard t={t} />
       <MyLobsterCard user={user} t={t} />
-      <Link to="/settings"
-        className="block bg-[#1e1e1e] border border-[#333] hover:border-gold/40 rounded-2xl p-5 transition-colors group">
+      <Link
+        to="/settings"
+        className="block bg-[#1e1e1e] border border-[#333] hover:border-gold/40 rounded-2xl p-5 transition-colors group"
+      >
         <div className="flex items-center justify-between">
           <div>
             <h3 className="font-semibold text-white">{t.profile.apiKeysTitle}</h3>
@@ -44,10 +90,13 @@ export default function Profile() {
 
 function CoinsCard({ t }) {
   const [coins, setCoins] = useState(null);
-  const [secs, setSecs]   = useState(0);
+  const [secs, setSecs] = useState(0);
 
   useEffect(() => {
-    getCoins().then(d => { setCoins(d.coins); setSecs(d.secondsUntilReset); }).catch(() => {});
+    getCoins().then(d => {
+      setCoins(d.coins);
+      setSecs(d.secondsUntilReset);
+    }).catch(() => {});
     const id = setInterval(() => setSecs(s => Math.max(0, s - 1)), 1000);
     return () => clearInterval(id);
   }, []);
@@ -76,18 +125,19 @@ function CoinsCard({ t }) {
 
 function MyLobsterCard({ user, t }) {
   const defaultName = `${user.display_name || user.username}'s Lobster`;
-  const [name,   setName]   = useState(defaultName);
+  const [name, setName] = useState(defaultName);
   const [prompt, setPrompt] = useState('');
-  const [model,  setModel]  = useState('');
+  const [model, setModel] = useState('');
   const [availableModels, setAvailableModels] = useState([]);
-  const [saving,  setSaving]  = useState(false);
-  const [saved,   setSaved]   = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [promptError, setPromptError] = useState('');
 
   useEffect(() => {
     getLobster().then(data => {
-      if (data.lobster_name)   setName(data.lobster_name);
+      if (data.lobster_name) setName(data.lobster_name);
       if (data.lobster_prompt) setPrompt(data.lobster_prompt);
-      if (data.lobster_model)  setModel(data.lobster_model);
+      if (data.lobster_model) setModel(data.lobster_model);
     }).catch(() => {});
 
     getApiKeys().then(keys => {
@@ -96,7 +146,19 @@ function MyLobsterCard({ user, t }) {
     }).catch(() => {});
   }, []);
 
+  const addPromptPreset = (text) => {
+    setPrompt((current) => {
+      const next = current.trim() ? `${current.trim()} ${text}` : text;
+      return next.slice(0, 200);
+    });
+    setPromptError('');
+  };
+
   const handleSave = async () => {
+    const error = validatePrompt(prompt);
+    setPromptError(error);
+    if (error) return;
+
     setSaving(true);
     try {
       await saveLobster({ lobster_name: name, lobster_prompt: prompt, lobster_model: model });
@@ -133,12 +195,39 @@ function MyLobsterCard({ user, t }) {
           <label className="text-xs text-gray-400 mb-1 block">{t.profile.personalityPrompt}</label>
           <textarea
             value={prompt}
-            onChange={e => setPrompt(e.target.value)}
+            onChange={e => {
+              const next = e.target.value;
+              setPrompt(next);
+              if (promptError) setPromptError(validatePrompt(next));
+            }}
             placeholder={t.profile.personalityPlaceholder}
             rows={3}
             maxLength={200}
-            className={`${inputCls} resize-none`}
+            className={`${inputCls} resize-none ${promptError ? 'border-red-500 focus:border-red-500' : ''}`}
           />
+          <div className="mt-2 flex flex-wrap gap-2">
+            {PROMPT_PRESETS.map((preset) => (
+              <button
+                key={preset.label}
+                type="button"
+                onClick={() => addPromptPreset(preset.text)}
+                className="rounded-full border border-[#444] bg-[#252525] px-2.5 py-1 text-[11px] text-gray-300 transition-colors hover:border-lobster hover:text-white"
+              >
+                + {preset.label}
+              </button>
+            ))}
+          </div>
+          <div className="mt-2 flex items-center justify-between gap-3 text-[11px]">
+            <p className="text-gray-500">
+              Best results come from style and strategy guidance, not long roleplay. Example: "Play loose-aggressive, explain pot odds clearly, and keep trash talk short."
+            </p>
+            <span className={`shrink-0 font-mono ${prompt.length > 180 ? 'text-yellow-500' : 'text-gray-600'}`}>
+              {prompt.length}/200
+            </span>
+          </div>
+          {promptError && (
+            <p className="mt-2 text-xs text-red-400">{promptError}</p>
+          )}
         </div>
 
         <div>
@@ -174,9 +263,9 @@ function MyLobsterCard({ user, t }) {
 }
 
 function AgentTokenCard({ t }) {
-  const [token, setToken]       = useState(null);
-  const [visible, setVisible]   = useState(false);
-  const [copied, setCopied]     = useState(false);
+  const [token, setToken] = useState(null);
+  const [visible, setVisible] = useState(false);
+  const [copied, setCopied] = useState(false);
   const [rotating, setRotating] = useState(false);
 
   useEffect(() => {
@@ -200,7 +289,7 @@ function AgentTokenCard({ t }) {
     setRotating(false);
   };
 
-  const maskedToken = '••••••••••••••••••••••••••••••••';
+  const maskedToken = '********************************';
 
   return (
     <div className="bg-[#1e1e1e] border border-[#333] rounded-2xl p-6 space-y-3">
@@ -273,7 +362,7 @@ function BetHistory({ t }) {
             </div>
             {b.settled ? (
               <span className={b.payout > 0 ? 'text-green-400 font-mono' : 'text-red-400 font-mono'}>
-                {b.payout > 0 ? `+${formatCoins(b.payout)}` : '-' + formatCoins(b.amount)}
+                {b.payout > 0 ? `+${formatCoins(b.payout)}` : `-${formatCoins(b.amount)}`}
               </span>
             ) : (
               <span className="text-yellow-500 text-xs">{t.profile.pending}</span>

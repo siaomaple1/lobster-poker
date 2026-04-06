@@ -18,7 +18,7 @@ export default function Leaderboard() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="text-4xl animate-spin">🦞</div>
+        <div className="text-4xl animate-spin">♣</div>
       </div>
     );
   }

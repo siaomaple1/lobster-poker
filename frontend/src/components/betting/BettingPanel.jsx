@@ -10,25 +10,28 @@ import { placeBet, getCoins } from '../../utils/api.js';
 const QUICK_BETS = [1000, 5000, 10000, 50000, 100000];
 
 export default function BettingPanel() {
-  const { bettingOpen, bettingEndsAt, handNumber, seats } = useGameStore();
+  const { bettingOpen, bettingEndsAt, handNumber, seats, currentRoomId } = useGameStore();
   const { user } = useAuthStore();
   const t = useT();
   const { show: showToast } = useToastStore();
 
   const [selected, setSelected] = useState(null);
-  const [amount, setAmount]     = useState(1000);
-  const [coins, setCoins]       = useState(0);
+  const [amount, setAmount] = useState(1000);
+  const [coins, setCoins] = useState(0);
   const [timeLeft, setTimeLeft] = useState(0);
-  const [placing, setPlacing]   = useState(false);
-  const [result, setResult]     = useState(null);
-  const [hasBet, setHasBet]     = useState(false);
+  const [placing, setPlacing] = useState(false);
+  const [result, setResult] = useState(null);
+  const [hasBet, setHasBet] = useState(false);
 
   useEffect(() => {
     if (user) getCoins().then(d => setCoins(d.coins)).catch(() => {});
   }, [user, bettingOpen]);
 
   useEffect(() => {
-    if (!bettingOpen || !bettingEndsAt) { setTimeLeft(0); return; }
+    if (!bettingOpen || !bettingEndsAt) {
+      setTimeLeft(0);
+      return;
+    }
     setHasBet(false);
     setResult(null);
     setSelected(null);
@@ -43,7 +46,7 @@ export default function BettingPanel() {
     if (!selected || amount < 1 || !user || hasBet) return;
     setPlacing(true);
     try {
-      await placeBet(selected, amount);
+      await placeBet(selected, amount, currentRoomId);
       setHasBet(true);
       setResult('ok');
       setCoins(c => c - amount);
@@ -68,7 +71,6 @@ export default function BettingPanel() {
 
   return (
     <div className="bg-[#1e1e1e] border border-[#333] rounded-2xl p-4 space-y-4">
-      {/* Header + timer */}
       <div>
         <div className="flex items-center justify-between mb-2">
           <span className="font-semibold text-white">{t.betting.handHeader(handNumber)}</span>
@@ -91,7 +93,7 @@ export default function BettingPanel() {
         </div>
       ) : hasBet ? (
         <div className="text-center py-6">
-          <div className="text-4xl mb-2">✅</div>
+          <div className="text-4xl mb-2">✓</div>
           <div className="text-green-400 font-semibold">
             {t.betting.betPlaced(resolveModel(selected)?.label || selected)}
           </div>
@@ -99,7 +101,6 @@ export default function BettingPanel() {
         </div>
       ) : (
         <>
-          {/* AI Model selector */}
           <div>
             <div className="text-xs text-gray-400 uppercase tracking-wider mb-2">{t.betting.pickChampion}</div>
             <div className="grid grid-cols-3 gap-2">
@@ -122,7 +123,6 @@ export default function BettingPanel() {
             </div>
           </div>
 
-          {/* Amount */}
           <div>
             <div className="text-xs text-gray-400 uppercase tracking-wider mb-2">
               {t.betting.betAmountLabel(formatCoins(coins))}
@@ -150,13 +150,12 @@ export default function BettingPanel() {
             <input
               type="number"
               value={amount}
-              onChange={e => setAmount(Math.min(Math.max(1, parseInt(e.target.value) || 0), coins))}
+              onChange={e => setAmount(Math.min(Math.max(1, parseInt(e.target.value, 10) || 0), coins))}
               className="w-full bg-[#2a2a2a] border border-[#444] rounded-lg px-3 py-2 text-white font-mono text-sm
                 focus:outline-none focus:border-gold"
             />
           </div>
 
-          {/* Place bet button */}
           <button
             onClick={handleBet}
             disabled={!selected || amount < 1 || placing || coins < amount}

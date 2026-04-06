@@ -23,15 +23,14 @@ export default function Header() {
   }, [user]);
 
   const nav = [
-    { to: '/',            emoji: '🎰', label: t.nav.arena },
+    { to: '/', emoji: '🎯', label: t.nav.arena },
     { to: '/leaderboard', emoji: '🏆', label: t.nav.leaderboard },
-    { to: '/settings',    emoji: '🔑', label: t.nav.apiKeys },
-    { to: '/profile',     emoji: '👤', label: t.nav.profile },
+    { to: '/settings', emoji: '🔑', label: t.nav.apiKeys },
+    { to: '/profile', emoji: '👤', label: t.nav.profile },
   ];
 
   return (
     <header className="bg-[#1a1a1a] border-b border-[#333] px-3 md:px-6 py-3 flex items-center justify-between sticky top-0 z-50">
-      {/* Logo */}
       <Link to="/" className="flex items-center gap-2 flex-shrink-0">
         <span className="text-2xl md:text-3xl">🦞</span>
         <span className="font-display text-lg md:text-xl text-gold font-bold tracking-wide hidden sm:block">
@@ -39,7 +38,6 @@ export default function Header() {
         </span>
       </Link>
 
-      {/* Nav */}
       <nav className="flex gap-0.5 md:gap-1">
         {nav.map(n => (
           <Link
@@ -56,19 +54,15 @@ export default function Header() {
         ))}
       </nav>
 
-      {/* Right side: online count + coins + lang toggle + user */}
       <div className="flex items-center gap-1.5 md:gap-2 flex-shrink-0">
-        {/* Online count */}
         {onlineCount > 0 && (
           <span className="hidden sm:flex items-center gap-1 text-xs text-gray-500 px-2 py-1 rounded-lg bg-[#1e1e1e] border border-[#333]">
             👥 {t.nav.online(onlineCount)}
           </span>
         )}
 
-        {/* Bug report */}
         <ReportBug />
 
-        {/* Language toggle */}
         <button
           onClick={toggle}
           className="text-xs font-semibold px-2 py-1.5 rounded-lg border border-[#444] text-gray-400 hover:text-white hover:border-[#666] transition-colors bg-[#1e1e1e] hover:bg-[#2a2a2a]"
@@ -82,14 +76,17 @@ export default function Header() {
             {coins !== null && (
               <div className="flex items-center gap-1 bg-[#2a2a2a] px-2 md:px-3 py-1.5 rounded-full">
                 <span className="text-gold text-xs md:text-sm font-mono font-bold">
-                  🪙 {formatCoins(coins)}
+                  Chips {formatCoins(coins)}
                 </span>
               </div>
             )}
             <div className="flex items-center gap-2">
               {user.avatar && (
-                <img src={user.avatar} alt={user.username}
-                  className="w-7 h-7 md:w-8 md:h-8 rounded-full border-2 border-[#444]" />
+                <img
+                  src={user.avatar}
+                  alt={user.username}
+                  className="w-7 h-7 md:w-8 md:h-8 rounded-full border-2 border-[#444]"
+                />
               )}
               <span className="text-sm text-gray-300 hidden sm:block">{user.display_name || user.username}</span>
             </div>
@@ -101,8 +98,10 @@ export default function Header() {
             </button>
           </>
         ) : (
-          <Link to="/login"
-            className="bg-lobster hover:bg-red-700 text-white px-3 md:px-4 py-2 rounded-lg text-sm font-medium transition-colors">
+          <Link
+            to="/login"
+            className="bg-lobster hover:bg-red-700 text-white px-3 md:px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+          >
             {t.nav.signIn}
           </Link>
         )}

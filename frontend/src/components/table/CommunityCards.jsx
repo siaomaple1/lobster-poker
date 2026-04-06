@@ -1,12 +1,14 @@
+import { cardRank, cardSuit, isRedCard } from '../../utils/format.js';
+
 export default function CommunityCards({ cards = [] }) {
   if (!cards.length) return null;
 
   return (
     <div className="flex gap-2 mt-2">
       {cards.map((card, i) => {
-        const rank = card.slice(0, -1);
-        const suit = card.slice(-1);
-        const isRed = suit === '♥' || suit === '♦';
+        const rank = cardRank(card);
+        const suit = cardSuit(card);
+        const isRed = isRedCard(card);
         return (
           <div
             key={i}
@@ -20,7 +22,6 @@ export default function CommunityCards({ cards = [] }) {
           </div>
         );
       })}
-      {/* Placeholder slots for remaining cards */}
       {Array.from({ length: Math.max(0, 5 - cards.length) }).map((_, i) => (
         <div
           key={`empty-${i}`}

@@ -16,11 +16,19 @@ const rateLimit      = require('express-rate-limit');
 const { stmts }              = require('./db/database');
 const apiRouter              = require('./routes/api');
 const { GameEngine, AI_MODELS } = require('./game/game-engine');
-const { encrypt, decrypt, isEncrypted } = require('./utils/crypto');
+const { encrypt, isEncrypted, resolveStoredSecret } = require('./utils/crypto');
 
 const PORT       = process.env.PORT || 3001;
 const BASE_URL   = process.env.BASE_URL   || `http://localhost:${PORT}`;
 const CLIENT_URL = process.env.CLIENT_URL || 'http://localhost:5173';
+const SESSION_SECRET = process.env.SESSION_SECRET;
+
+if (process.env.NODE_ENV === 'production' && !SESSION_SECRET) {
+  throw new Error('SESSION_SECRET must be set in production');
+}
+if (!SESSION_SECRET) {
+  console.warn('[Config] SESSION_SECRET is not set. Using a development fallback only.');
+}
 
 console.log(`[Config] BASE_URL=${BASE_URL} CLIENT_URL=${CLIENT_URL}`);
 console.log(`[Config] GOOGLE_CLIENT_ID=${process.env.GOOGLE_CLIENT_ID ? 'set' : 'MISSING'}`);
@@ -133,7 +141,7 @@ fs.mkdirSync(path.join(__dirname, '../data'), { recursive: true });
 
 const sessionMiddleware = session({
   store: new SQLiteStore({ db: 'sessions.db', dir: path.join(__dirname, '../data') }),
-  secret: process.env.SESSION_SECRET || 'dev-secret-change-me',
+  secret: SESSION_SECRET || 'dev-secret-change-me',
   resave: false,
   saveUninitialized: false,
   cookie: { secure: process.env.NODE_ENV === 'production', httpOnly: true, maxAge: 7 * 24 * 60 * 60 * 1000 },
@@ -176,13 +184,8 @@ function buildUserKeys(userId) {
   const rows = stmts.getAllApiKeys.all(userId);
   const keys = {};
   for (const row of rows) {
-    const plain = decrypt(row.api_key) ?? row.api_key;
-    keys[row.model] = plain;
-  }
-  for (const m of AI_MODELS) {
-    if (!keys[m] && process.env[`${m.toUpperCase()}_API_KEY`]) {
-      keys[m] = process.env[`${m.toUpperCase()}_API_KEY`];
-    }
+    const plain = resolveStoredSecret(row.api_key);
+    if (plain) keys[row.model] = plain;
   }
   return keys;
 }
@@ -212,6 +215,11 @@ function emitLobby(room) {
   io.to(`table:${room.id}`).emit('room:lobby', { players: lobbySnapshot(room) });
 }
 
+function hasReadyOpenClaw(room, readyEntries) {
+  const agentUserId = room?.engine?.agentSocket?.data?.agentUser?.id;
+  return Boolean(room?.engine?.agentSocket?.connected && agentUserId && readyEntries.some((entry) => entry.user.id === agentUserId));
+}
+
 function checkAutoStart(room) {
   if (room.engine.running) return;
   const readyEntries = [...room.lobby.values()].filter(e => e.ready);
@@ -236,9 +244,14 @@ function checkAutoStart(room) {
   }
 
   const seatIds = Object.keys(seatKeys);
-  console.log(`[Room ${room.id}] checkAutoStart: ${seatIds.length} seats:`, seatIds);
+  const effectiveSeatCount = seatIds.length + (hasReadyOpenClaw(room, readyEntries) ? 1 : 0);
+  console.log(`[Room ${room.id}] checkAutoStart: ${effectiveSeatCount} playable seats:`, seatIds);
 
-  if (seatIds.length < 2) {
+  if (effectiveSeatCount < 2) {
+    io.to(`table:${room.id}`).emit('room:lobby_error', {
+      error: 'Not enough playable seats. Add model keys, connect OpenClaw, or use Test Mode.',
+    });
+    return;
     io.to(`table:${room.id}`).emit('room:lobby_error', {
       error: 'Not enough API keys — add at least 2 AI model keys in Settings to start.',
     });
@@ -302,10 +315,25 @@ app.set('io', io);
 app.set('rooms', rooms);
 app.set('createRoom', createRoom);
 
+function parseAgentToken(socket) {
+  const token = socket.handshake.auth?.agentToken;
+  if (typeof token !== 'string') return null;
+  return token.trim() || null;
+}
+
+function validateIncomingAgentAction(payload) {
+  const action = String(payload?.action || '').trim().toLowerCase();
+  const result = { action };
+  if (payload?.raiseTotal !== undefined) {
+    result.raiseTotal = Math.floor(Number(payload.raiseTotal));
+  }
+  return result;
+}
+
 // ── Agent sockets: token-based auth bypass ─────────────────────────────────
-// Agent sockets identify via ?agentToken= query param instead of session cookie
+// Agent sockets identify via auth.agentToken instead of session cookie
 io.use((socket, next) => {
-  const token = socket.handshake.auth?.agentToken || socket.handshake.query?.agentToken;
+  const token = parseAgentToken(socket);
   if (!token) return next(); // regular browser client — session auth applies
   const user = stmts.getUserByAgentToken.get(token);
   if (!user) return next(new Error('Invalid agent token'));
@@ -340,6 +368,18 @@ io.on('connection', socket => {
       const r = rooms.get(roomId);
       if (!r) return socket.emit('agent:error', { error: 'Room not found' });
       if (r.engine.running) return socket.emit('agent:error', { error: 'Game already running' });
+      const prevRoom = rooms.get(socket.data.roomId);
+      if (prevRoom && prevRoom.id !== roomId) {
+        if (prevRoom.engine.agentSocket?.id === socket.id) prevRoom.engine.agentSocket = null;
+        removeFromLobby(prevRoom, socket.id);
+        socket.leave(`table:${prevRoom.id}`);
+        emitLobby(prevRoom);
+      }
+      const previousAgentSocket = r.engine.agentSocket;
+      if (previousAgentSocket?.id && previousAgentSocket.id !== socket.id) {
+        previousAgentSocket.emit('agent:error', { error: 'This agent session was replaced by a newer connection.' });
+        previousAgentSocket.disconnect(true);
+      }
       socket.join(`table:${roomId}`);
       socket.data.roomId = roomId;
       r.engine.agentSocket = socket;
@@ -356,10 +396,12 @@ io.on('connection', socket => {
     });
     socket.on('agent:action', ({ action, raiseTotal }) => {
       const r = rooms.get(socket.data.roomId || 1);
-      if (r?.engine?.pendingAgentResolve) {
-        r.engine.pendingAgentResolve({ action, raiseTotal });
-        r.engine.pendingAgentResolve = null;
+      if (!r?.engine?.pendingAgentResolve) return;
+      if (r.engine.agentSocket?.id !== socket.id) {
+        return socket.emit('agent:error', { error: 'This connection is not the active OpenClaw seat.' });
       }
+      r.engine.pendingAgentResolve(validateIncomingAgentAction({ action, raiseTotal }));
+      r.engine.pendingAgentResolve = null;
     });
     socket.on('disconnect', () => {
       const r = rooms.get(socket.data.roomId);

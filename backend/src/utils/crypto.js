@@ -40,4 +40,10 @@ function isEncrypted(value) {
   return typeof value === 'string' && /^[0-9a-f]+:[0-9a-f]+:[0-9a-f]+$/.test(value);
 }
 
-module.exports = { encrypt, decrypt, isEncrypted };
+function resolveStoredSecret(value) {
+  if (typeof value !== 'string' || !value) return null;
+  if (isEncrypted(value)) return decrypt(value);
+  return value;
+}
+
+module.exports = { encrypt, decrypt, isEncrypted, resolveStoredSecret };

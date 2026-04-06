@@ -1,77 +1,92 @@
 import { create } from 'zustand';
 
 export const useGameStore = create((set, get) => ({
-  // ── Room state ────────────────────────────────────────────────────────────
   currentRoomId: 1,
   setCurrentRoomId(roomId) {
     set({
       currentRoomId: roomId,
-      running: false, gameId: null, handNumber: 0, seats: [],
-      stage: null, board: [], pot: 0, maxBet: 0, actorId: null, players: [],
-      bettingOpen: false, bettingEndsAt: null, log: [], chatMessages: [],
-      lastWinner: null, lastWinHand: null, lobbyPlayers: [], lobbyError: null,
+      running: false,
+      gameId: null,
+      handNumber: 0,
+      seats: [],
+      stage: null,
+      board: [],
+      pot: 0,
+      maxBet: 0,
+      actorId: null,
+      players: [],
+      bettingOpen: false,
+      bettingEndsAt: null,
+      log: [],
+      chatMessages: [],
+      lastWinner: null,
+      lastWinHand: null,
+      lobbyPlayers: [],
+      lobbyError: null,
       lobsterName: null,
     });
   },
 
-  // ── Server state ──────────────────────────────────────────────────────────
-  running:     false,
-  gameId:      null,
-  handNumber:  0,
-  seats:       [],     // [{ id, chips }]
-  stage:       null,
-  board:       [],
-  pot:         0,
-  maxBet:      0,
-  actorId:     null,
-  players:     [],     // per-hand player state from PokerHand
+  running: false,
+  gameId: null,
+  handNumber: 0,
+  seats: [],
+  stage: null,
+  board: [],
+  pot: 0,
+  maxBet: 0,
+  actorId: null,
+  players: [],
 
-  // ── Betting window ────────────────────────────────────────────────────────
-  bettingOpen:   false,
+  bettingOpen: false,
   bettingEndsAt: null,
 
-  // ── Action log ────────────────────────────────────────────────────────────
   log: [],
 
-  // ── Chat ─────────────────────────────────────────────────────────────────
   chatMessages: [],
   addChatMessage(msg) {
     set(s => ({ chatMessages: [...s.chatMessages.slice(-49), msg] }));
   },
 
-  // ── Lobby ─────────────────────────────────────────────────────────────────
   lobbyPlayers: [],
   lobbyError: null,
   handleLobbyUpdate(data) {
-    set({ lobbyPlayers: data.players || [] });
+    set({ lobbyPlayers: data.players || [], lobbyError: null });
   },
   handleLobbyError(data) {
     set({ lobbyError: data.error });
     setTimeout(() => set({ lobbyError: null }), 5000);
   },
 
-  // ── Last hand result ─────────────────────────────────────────────────────
-  lastWinner:   null,
-  lastWinHand:  null,
-
-  // ── Lobster name (set when a game starts with a user lobster seat) ────────
+  lastWinner: null,
+  lastWinHand: null,
   lobsterName: null,
 
-  // ── Online count ──────────────────────────────────────────────────────────
   onlineCount: 0,
-  setOnlineCount(count) { set({ onlineCount: count }); },
+  setOnlineCount(count) {
+    set({ onlineCount: count });
+  },
 
-  // ── Socket event handlers ─────────────────────────────────────────────────
   handleStatus(data) {
     set({ running: data.running, gameId: data.gameId, handNumber: data.handNumber, seats: data.seats });
   },
 
   handleGameStart(data) {
     set({
-      running: true, gameId: data.gameId,
-      seats: data.seats, board: [], pot: 0, stage: null,
+      running: true,
+      gameId: data.gameId,
+      seats: data.seats,
+      board: [],
+      pot: 0,
+      stage: null,
       lobsterName: data.lobsterName || null,
-      log: [{ type: 'system', msg: '🦞 New game started!' }],
+      log: [{
+        type: 'system',
+        msg: 'New game started.',
+        ts: Date.now(),
+        handNumber: data.handNumber || 0,
+        stage: null,
+      }],
     });
   },
 
@@ -86,19 +101,19 @@ export const useGameStore = create((set, get) => ({
       lastWinner: null,
       lastWinHand: null,
     });
-    get().pushLog({ type: 'system', msg: `✋ Hand #${data.handNumber} — Place your bets!` });
+    get().pushLog({ type: 'system', msg: `Hand #${data.handNumber}: place your bets.` });
   },
 
   handleBettingClosed() {
     set({ bettingOpen: false, bettingEndsAt: null });
-    get().pushLog({ type: 'system', msg: '🃏 Betting closed. Dealing...' });
+    get().pushLog({ type: 'system', msg: 'Betting closed. Dealing cards...' });
   },
 
   handleHandStart(data) {
     set({
       stage: data.state.stage,
       board: data.state.board,
-      pot:   data.state.pot,
+      pot: data.state.pot,
       players: data.state.players,
       actorId: null,
     });
@@ -106,14 +121,24 @@ export const useGameStore = create((set, get) => ({
   },
 
   handleThinking(data) {
-    set({ actorId: data.actorId, stage: data.state.stage, board: data.state.board,
-          pot: data.state.pot, players: data.state.players });
+    set({
+      actorId: data.actorId,
+      stage: data.state.stage,
+      board: data.state.board,
+      pot: data.state.pot,
+      players: data.state.players,
+    });
   },
 
   handleAction(data) {
     const { actorId, action, raiseTotal, thought, trash, ownerName, state } = data;
-    set({ stage: state.stage, board: state.board, pot: state.pot,
-          players: state.players, actorId: null });
+    set({
+      stage: state.stage,
+      board: state.board,
+      pot: state.pot,
+      players: state.players,
+      actorId: null,
+    });
     get().pushLog({ type: 'action', actorId, action, amount: raiseTotal, thought, trash, ownerName });
   },
 
@@ -127,7 +152,7 @@ export const useGameStore = create((set, get) => ({
     });
     get().pushLog({
       type: 'winner',
-      msg: `🏆 ${data.winnerId} wins ${data.pot.toLocaleString()} chips${data.winnerHand ? ` with ${data.winnerHand.name}` : ''}!`,
+      msg: `${data.winnerId} wins ${data.pot.toLocaleString()} chips${data.winnerHand ? ` with ${data.winnerHand.name}` : ''}!`,
     });
   },
 
@@ -137,17 +162,28 @@ export const useGameStore = create((set, get) => ({
 
   handleGameEnd(data) {
     set({ running: false, seats: data.seats });
-    get().pushLog({ type: 'system', msg: `🦞 Game over! Winner: ${data.winner || 'TBD'}` });
+    get().pushLog({ type: 'system', msg: `Game over. Winner: ${data.winner || 'TBD'}` });
   },
 
   handlePayouts(data) {
     get().pushLog({
       type: 'payout',
-      msg: `💰 Payouts settled for hand #${data.handNumber}`,
+      msg: `Payouts settled for hand #${data.handNumber}`,
     });
   },
 
   pushLog(entry) {
-    set(s => ({ log: [...s.log.slice(-100), { ...entry, ts: Date.now() }] }));
+    const state = get();
+    set((s) => ({
+      log: [
+        ...s.log.slice(-149),
+        {
+          ...entry,
+          ts: entry.ts || Date.now(),
+          handNumber: entry.handNumber ?? state.handNumber ?? 0,
+          stage: entry.stage ?? state.stage ?? null,
+        },
+      ],
+    }));
   },
 }));

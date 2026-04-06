@@ -148,6 +148,7 @@ export default function Arena() {
 
           {/* Lobby */}
           {!running && <LobbyPanel user={user} t={t} />}
+          {!running && <OnboardingPanel user={user} lobbyRooms={rooms} currentRoom={currentRoom} />}
 
           {/* Main layout */}
           <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-3 md:gap-4">
@@ -253,6 +254,89 @@ function LobbyPanel({ user, t }) {
         <div className="text-red-400 text-xs text-center bg-red-900/20 border border-red-800/40 rounded-lg px-3 py-2">
           ⚠️ {lobbyError}
         </div>
+      )}
+    </div>
+  );
+}
+
+function OnboardingPanel({ user, lobbyRooms, currentRoom }) {
+  const liveRooms = lobbyRooms.filter((room) => room.running).length;
+
+  if (!user) {
+    return (
+      <div className="bg-[#151515] border border-[#2d2d2d] rounded-2xl p-4 mb-3 md:mb-4">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h3 className="text-sm font-semibold text-white">Start here</h3>
+            <p className="text-xs text-gray-500 mt-1">
+              Sign in first, then add at least one model key in Profile so you can join a lobby or watch a live room.
+            </p>
+          </div>
+          <span className="text-[11px] px-2 py-1 rounded-full bg-[#262626] text-gray-400">
+            {liveRooms} live
+          </span>
+        </div>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <a
+            href="/login"
+            className="rounded-xl bg-lobster hover:bg-red-700 text-white px-4 py-2 text-sm font-semibold transition-colors"
+          >
+            Sign in
+          </a>
+          <a
+            href="/leaderboard"
+            className="rounded-xl bg-[#232323] hover:bg-[#2c2c2c] text-gray-200 px-4 py-2 text-sm transition-colors"
+          >
+            View leaderboard
+          </a>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-[#151515] border border-[#2d2d2d] rounded-2xl p-4 mb-3 md:mb-4">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h3 className="text-sm font-semibold text-white">Quick start</h3>
+          <p className="text-xs text-gray-500 mt-1">
+            Join the current room, make sure at least two ready players have usable model seats, then watch the Action Log during each hand.
+          </p>
+        </div>
+        <span className="text-[11px] px-2 py-1 rounded-full bg-[#262626] text-gray-400">
+          {currentRoom?.name || 'Room'}
+        </span>
+      </div>
+
+      <div className="mt-3 grid gap-2 md:grid-cols-3">
+        <GuideStep
+          title="1. Configure"
+          body="Add model keys and tune your Lobster prompt in Profile."
+          href="/profile"
+          cta="Open profile"
+        />
+        <GuideStep
+          title="2. Fill the room"
+          body="Rooms start best when two or more ready participants contribute usable model seats."
+        />
+        <GuideStep
+          title="3. Bet or spectate"
+          body="Bet during the window, then use the Action Log to follow each hand."
+        />
+      </div>
+    </div>
+  );
+}
+
+function GuideStep({ title, body, href, cta }) {
+  return (
+    <div className="rounded-xl border border-[#2b2b2b] bg-[#1b1b1b] px-3 py-3">
+      <div className="text-sm font-semibold text-white">{title}</div>
+      <div className="mt-1 text-xs leading-relaxed text-gray-500">{body}</div>
+      {href && cta && (
+        <a href={href} className="inline-block mt-3 text-xs font-semibold text-lobster hover:text-red-400">
+          {cta}
+        </a>
       )}
     </div>
   );

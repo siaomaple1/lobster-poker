@@ -21,9 +21,8 @@ export default function HowToPlay() {
         >
           <div
             className="bg-[#111] border border-[#333] rounded-2xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto"
-            onClick={e => e.stopPropagation()}
+            onClick={(e) => e.stopPropagation()}
           >
-            {/* Header */}
             <div className="flex items-center justify-between px-6 py-4 border-b border-[#333]">
               <div>
                 <h2 className="text-yellow-400 text-lg font-medium">{t.howToPlay.title}</h2>
@@ -32,13 +31,13 @@ export default function HowToPlay() {
               <button
                 onClick={() => setOpen(false)}
                 className="text-gray-600 hover:text-gray-300 text-xl leading-none ml-4"
+                aria-label="Close how to play"
               >
-                ✕
+                x
               </button>
             </div>
 
             <div className="px-6 py-5 space-y-3">
-              {/* Steps */}
               {t.howToPlay.steps.map((step, idx) => (
                 <div key={idx} className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl px-4 py-3 flex gap-3">
                   <div className="w-6 h-6 rounded-full bg-yellow-400 text-black text-xs font-medium flex items-center justify-center flex-shrink-0 mt-0.5">
@@ -47,11 +46,13 @@ export default function HowToPlay() {
                   <div>
                     <p className="text-sm font-medium text-gray-100 mb-1">{step.title}</p>
                     <p className="text-xs text-gray-500 leading-relaxed">{step.desc}</p>
-                    <span className={`inline-block text-[11px] px-2 py-0.5 rounded mt-1.5 ${
-                      step.tag === 'required'
-                        ? 'bg-red-950 text-red-400 border border-red-900'
-                        : 'bg-green-950 text-green-500 border border-green-900'
-                    }`}>
+                    <span
+                      className={`inline-block text-[11px] px-2 py-0.5 rounded mt-1.5 ${
+                        step.tag === 'required'
+                          ? 'bg-red-950 text-red-400 border border-red-900'
+                          : 'bg-green-950 text-green-500 border border-green-900'
+                      }`}
+                    >
                       {step.tag === 'required' ? t.howToPlay.required : t.howToPlay.optional}
                     </span>
                   </div>
@@ -60,7 +61,6 @@ export default function HowToPlay() {
 
               <div className="border-t border-[#333] my-4" />
 
-              {/* Hand rankings */}
               <div className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl px-4 py-3">
                 <p className="text-yellow-400 text-xs font-medium mb-3">{t.howToPlay.rankingsTitle}</p>
                 <div className="grid grid-cols-2 gap-2">

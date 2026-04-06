@@ -18,6 +18,12 @@ function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
+function fallbackAgentAction(gameState) {
+  const me = gameState.players.find(p => p.id === 'openclaw');
+  const toCall = Math.max(0, gameState.maxBet - (me?.bet || 0));
+  return toCall <= 200 ? { action: 'call' } : { action: 'fold' };
+}
+
 class GameEngine {
   constructor(io, roomId = 1) {
     this.io      = io;           // Socket.io server instance
@@ -29,6 +35,7 @@ class GameEngine {
     this.handNumber = 0;
     this.seats = [];             // [{ id: 'claude', chips: 10000 }]
     this.currentHand = null;
+    this.bettingOpen = false;
     this.dealerId = null;        // ID of current dealer (null = first hand, start at index 0)
     this.agentSocket = null;     // OpenClaw agent socket reference
     this.pendingAgentResolve = null; // resolve fn for current agent action
@@ -38,12 +45,47 @@ class GameEngine {
     this.io.to(`table:${this.roomId}`).emit(event, data);
   }
 
+  validateAgentAction(payload, gameState) {
+    const action = String(payload?.action || '').trim().toLowerCase();
+    const allowed = new Set(['fold', 'call', 'check', 'raise']);
+    if (!allowed.has(action)) return fallbackAgentAction(gameState);
+
+    const me = gameState.players.find(p => p.id === 'openclaw');
+    const currentBet = me?.bet || 0;
+    const toCall = Math.max(0, gameState.maxBet - currentBet);
+
+    if (action === 'check' && toCall > 0) return { action: 'call' };
+    if (action === 'call' && toCall === 0) return { action: 'check' };
+    if (action !== 'raise') return { action };
+
+    const requested = Math.floor(Number(payload?.raiseTotal));
+    const minRaise = gameState.minRaise ?? (gameState.maxBet + 100);
+    if (!Number.isFinite(requested) || requested <= gameState.maxBet) {
+      return toCall > 0 ? { action: 'call' } : { action: 'check' };
+    }
+
+    const maxTotal = currentBet + (me?.chips || 0);
+    const clampedRaiseTotal = Math.max(minRaise, Math.min(requested, maxTotal));
+    if (clampedRaiseTotal <= gameState.maxBet) {
+      return toCall > 0 ? { action: 'call' } : { action: 'check' };
+    }
+
+    return { action: 'raise', raiseTotal: clampedRaiseTotal };
+  }
+
   // ── Start a new game ────────────────────────────────────────────────────
   async start(createdBy = null, models = AI_MODELS, customSeatOwners = null) {
     if (this.running) return;
     this.running = true;
 
     try {
+      this.handNumber = 0;
+      this.currentHand = null;
+      this.bettingOpen = false;
+      this.dealerId = null;
+      this.lobsterConfig = null;
+      this.pendingAgentResolve = null;
+
       // Create DB record
       const { id } = stmts.createGame.get(createdBy, this.roomId);
       this.gameId = id;
@@ -137,7 +179,9 @@ class GameEngine {
       duration:   BETTING_WINDOW_MS,
       models:     active.map(s => s.id),
     });
+    this.bettingOpen = true;
     await sleep(BETTING_WINDOW_MS);
+    this.bettingOpen = false;
     this.emit('game:betting_closed', { handNumber: this.handNumber });
 
     // ── Deal ───────────────────────────────────────────────────────────
@@ -199,7 +243,9 @@ class GameEngine {
       stmts.updateSeat.run(hp.chips, this.gameId, hp.id);
       stmts.recordHandResult.run(winnerSet.has(hp.id) ? 1 : 0, baseModel(hp.id));
     }
-    stmts.recordWin.run(this.gameId, baseModel(winnerId));
+    for (const id of winnerSet) {
+      stmts.recordWin.run(this.gameId, baseModel(id));
+    }
 
     // Save hand to DB
     stmts.insertHand.get({
@@ -264,22 +310,20 @@ class GameEngine {
   // Ask the connected OpenClaw agent for its action
   _getAgentAction(gameState, handHistory) {
     const AGENT_TIMEOUT_MS = 30000;
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve) => {
       if (!this.agentSocket || !this.agentSocket.connected) {
         console.warn('[Agent] No agent connected — falling back');
-        const me = gameState.players.find(p => p.id === 'openclaw');
-        const toCall = Math.max(0, gameState.maxBet - (me?.bet || 0));
-        return resolve(toCall <= 200 ? { action: 'call' } : { action: 'fold' });
+        return resolve(fallbackAgentAction(gameState));
       }
       const timer = setTimeout(() => {
         this.pendingAgentResolve = null;
         console.warn('[Agent] Timed out — falling back');
-        resolve({ action: 'fold' });
+        resolve(fallbackAgentAction(gameState));
       }, AGENT_TIMEOUT_MS);
 
       this.pendingAgentResolve = (result) => {
         clearTimeout(timer);
-        resolve(result);
+        resolve(this.validateAgentAction(result, gameState));
       };
       this.agentSocket.emit('agent:decide', {
         gameState,
@@ -301,6 +345,7 @@ class GameEngine {
     stmts.endGame.run(this.gameId);
     this.running = false;
     this.currentHand = null;
+    this.bettingOpen = false;
 
     this.emit('game:end', {
       gameId: this.gameId,
@@ -323,6 +368,7 @@ class GameEngine {
       handNumber: this.handNumber,
       seats:      this.seats,
       stage:      this.currentHand?.stage || null,
+      bettingOpen: this.bettingOpen,
     };
   }
 }
