@@ -6,7 +6,7 @@ import { getSocket } from '../../hooks/useSocket.js';
 import PlayerSeat from './PlayerSeat.jsx';
 import CommunityCards from './CommunityCards.jsx';
 
-const LOBSTER_MODEL = { id: 'lobster', label: '🦞 Lobster', color: '#e53e3e', emoji: '🦞' };
+const LOBSTER_MODEL = { id: 'lobster', label: '🦞 Bot-Lobster', color: '#e53e3e', emoji: '🦞' };
 const MAX_LOBBY_SEATS = 6;
 
 const SEAT_POSITIONS = [

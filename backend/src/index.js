@@ -252,10 +252,6 @@ function checkAutoStart(room) {
       error: 'Not enough playable seats. Add model keys, connect OpenClaw, or use Test Mode.',
     });
     return;
-    io.to(`table:${room.id}`).emit('room:lobby_error', {
-      error: 'Not enough API keys — add at least 2 AI model keys in Settings to start.',
-    });
-    return;
   }
 
   // Save player IDs for auto-requeue after game ends (#4)

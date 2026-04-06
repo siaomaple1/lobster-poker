@@ -7,6 +7,7 @@ const { stmts, getCoinsForUser, secondsUntilReset } = require('../db/database');
 const { AI_MODELS } = require('../game/game-engine');
 const { TEST_KEY } = require('../game/ai-player');
 const { encrypt, resolveStoredSecret } = require('../utils/crypto');
+const { validateApiKey } = require('../utils/validate-key');
 
 const router = express.Router();
 const BANNED_PROMPT_TERMS = [
@@ -69,18 +70,29 @@ router.get('/api-keys', requireAuth, (req, res) => {
   res.json(result);
 });
 
-router.put('/api-keys/:model', requireAuth, (req, res) => {
+router.put('/api-keys/:model', requireAuth, async (req, res) => {
   const { model } = req.params;
   const { apiKey } = req.body;
 
   if (!AI_MODELS.includes(model)) {
     return res.status(400).json({ error: 'Unknown model' });
   }
-  if (!apiKey || typeof apiKey !== 'string' || apiKey.trim().length < 8) {
-    return res.status(400).json({ error: 'Invalid API key' });
+  const trimmed = (apiKey || '').trim();
+  if (!trimmed || trimmed.length < 8) {
+    return res.status(400).json({ error: 'API key is too short' });
   }
 
-  stmts.upsertApiKey.run(req.user.id, model, encrypt(apiKey.trim()));
+  try {
+    const { valid, error } = await validateApiKey(model, trimmed);
+    if (!valid) {
+      return res.status(400).json({ error: error || 'Invalid API key' });
+    }
+  } catch (err) {
+    console.error(`[API key validation] ${model}: ${err.message}`);
+    return res.status(500).json({ error: 'Validation failed — please try again' });
+  }
+
+  stmts.upsertApiKey.run(req.user.id, model, encrypt(trimmed));
   res.json({ ok: true });
 });
 
