@@ -41,12 +41,13 @@ export default function ActionLog() {
   );
 
   return (
-    <div className="bg-[#1a1a1a] border border-[#333] rounded-2xl flex flex-col h-80">
+    <div className="bg-[#1a1a1a] border border-[#333] rounded-2xl flex flex-col min-h-[400px]">
       <div className="flex border-b border-[#333] flex-shrink-0">
         {tabBtn('log', t.log.logTab)}
+        {tabBtn('thoughts', t.log.thoughtsTab)}
         {tabBtn('chat', t.log.chatTab)}
       </div>
-      {tab === 'log' ? <LogPanel /> : <ChatPanel />}
+      {tab === 'log' ? <LogPanel /> : tab === 'thoughts' ? <ThoughtsPanel /> : <ChatPanel />}
     </div>
   );
 }
@@ -227,6 +228,48 @@ function LogEntry({ entry }) {
   }
 
   return null;
+}
+
+function ThoughtsPanel() {
+  const { log } = useGameStore();
+  const bottomRef = useRef(null);
+
+  const thoughts = useMemo(
+    () => log.filter((e) => e.type === 'action' && e.thought),
+    [log]
+  );
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [thoughts]);
+
+  return (
+    <div className="flex-1 min-h-0 overflow-y-auto p-3 space-y-2.5">
+      {thoughts.length === 0 && (
+        <div className="text-gray-600 text-center pt-8 text-xs leading-relaxed">
+          AI thoughts will appear here once the game starts.
+        </div>
+      )}
+      {thoughts.map((entry, i) => {
+        const model = resolveModel(entry.actorId);
+        const actionMeta = ACTION_STYLE[normalizeAction(entry.action)] || ACTION_STYLE.check;
+        return (
+          <div key={entry.ts || i} className="rounded-xl border border-[#2d2d2d] bg-[#1d1d1d] px-3 py-2.5">
+            <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+              <span className="text-sm font-semibold" style={{ color: model.color }}>
+                {model.label}
+              </span>
+              <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${actionMeta.badge}`}>
+                {actionMeta.label}
+              </span>
+            </div>
+            <p className="text-[12px] leading-relaxed text-gray-200">{entry.thought}</p>
+          </div>
+        );
+      })}
+      <div ref={bottomRef} />
+    </div>
+  );
 }
 
 function ChatPanel() {

@@ -151,13 +151,13 @@ export default function Arena() {
           {!running && <OnboardingPanel user={user} lobbyRooms={rooms} currentRoom={currentRoom} />}
 
           {/* Main layout */}
-          <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-3 md:gap-4">
-            <div className="space-y-4">
+          <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-3 md:gap-4 lg:items-start">
+            <div>
               <PokerTable />
-              <ActionLog />
             </div>
             <div className="space-y-4">
               <BettingPanel />
+              <ActionLog />
               <ChipLeaderboard seats={seats} label={t.arena.chipCounts} />
             </div>
           </div>

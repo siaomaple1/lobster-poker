@@ -64,6 +64,7 @@ const translations = {
     },
     log: {
       logTab: 'Action Log',
+      thoughtsTab: 'Thoughts',
       chatTab: 'Chat',
       waitingGame: 'Waiting for game...',
       firstMessage: 'Be the first to say something!',
@@ -261,6 +262,7 @@ const translations = {
     },
     log: {
       logTab: '操作日志',
+      thoughtsTab: '内心',
       chatTab: '聊天',
       waitingGame: '等待游戏开始...',
       firstMessage: '来发送第一条消息吧！',
